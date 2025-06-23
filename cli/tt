@@ -1,0 +1,29 @@
+#!/bin/bash
+# Universal Time Tracker CLI Wrapper
+
+# Get the directory where this script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
+# Python requirements
+REQUIRED_PACKAGES="click requests pyyaml"
+
+# Check if Python is available
+if ! command -v python3 &> /dev/null; then
+    echo "❌ Python 3 is required but not installed"
+    exit 1
+fi
+
+# Check if required packages are installed
+for package in $REQUIRED_PACKAGES; do
+    if ! python3 -c "import $package" &> /dev/null; then
+        echo "📦 Installing required package: $package"
+        pip3 install --user $package || {
+            echo "❌ Failed to install $package"
+            echo "💡 Try: pip3 install --user $package"
+            exit 1
+        }
+    fi
+done
+
+# Run the CLI
+python3 "$SCRIPT_DIR/tt.py" "$@"
