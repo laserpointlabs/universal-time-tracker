@@ -17,11 +17,23 @@ fi
 for package in $REQUIRED_PACKAGES; do
     if ! python3 -c "import $package" &> /dev/null; then
         echo "📦 Installing required package: $package"
-        pip3 install --user $package || {
-            echo "❌ Failed to install $package"
-            echo "💡 Try: pip3 install --user $package"
-            exit 1
-        }
+        
+        # Check if we're in a virtual environment
+        if [[ -n "$VIRTUAL_ENV" ]] || [[ -n "$CONDA_DEFAULT_ENV" ]]; then
+            # In virtual environment - use pip without --user
+            pip3 install $package || {
+                echo "❌ Failed to install $package"
+                echo "💡 Try: pip3 install $package"
+                exit 1
+            }
+        else
+            # Not in virtual environment - use --user
+            pip3 install --user $package || {
+                echo "❌ Failed to install $package"
+                echo "💡 Try: pip3 install --user $package"
+                exit 1
+            }
+        fi
     fi
 done
 
