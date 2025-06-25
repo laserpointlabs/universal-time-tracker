@@ -233,7 +233,7 @@ def sessions():
     date_from = request.args.get('date_from')
     date_to = request.args.get('date_to')
     
-    # Build query
+    # Build query for filtered sessions
     query = '''
         SELECT s.*, p.name as project_name, COUNT(b.id) as break_count
         FROM sessions s
@@ -266,9 +266,54 @@ def sessions():
     
     sessions = conn.execute(query, params).fetchall()
     
+    # Get unfiltered summary statistics
+    unfiltered_query = '''
+        SELECT 
+            COUNT(*) as total_sessions,
+            SUM(CASE WHEN end_time IS NULL THEN 1 ELSE 0 END) as active_sessions,
+            SUM(CASE WHEN duration_minutes IS NOT NULL THEN duration_minutes ELSE 0 END) as total_minutes
+        FROM sessions s
+        JOIN projects p ON s.project_id = p.id
+    '''
+    unfiltered_stats = conn.execute(unfiltered_query).fetchone()
+    
+    # Get filtered summary statistics
+    filtered_query = '''
+        SELECT 
+            COUNT(*) as total_sessions,
+            SUM(CASE WHEN end_time IS NULL THEN 1 ELSE 0 END) as active_sessions,
+            SUM(CASE WHEN duration_minutes IS NOT NULL THEN duration_minutes ELSE 0 END) as total_minutes
+        FROM sessions s
+        JOIN projects p ON s.project_id = p.id
+    '''
+    filtered_params = []
+    filtered_conditions = []
+    
+    if project_filter:
+        filtered_conditions.append('p.name LIKE ?')
+        filtered_params.append(f'%{project_filter}%')
+    
+    if category_filter:
+        filtered_conditions.append('s.category = ?')
+        filtered_params.append(category_filter)
+    
+    if date_from:
+        filtered_conditions.append('DATE(s.start_time) >= ?')
+        filtered_params.append(date_from)
+    
+    if date_to:
+        filtered_conditions.append('DATE(s.start_time) <= ?')
+        filtered_params.append(date_to)
+    
+    if filtered_conditions:
+        filtered_query += ' WHERE ' + ' AND '.join(filtered_conditions)
+    
+    filtered_stats = conn.execute(filtered_query, filtered_params).fetchone()
+    
     # Process sessions to add current duration for active sessions
     current_time = datetime.now()
     processed_sessions = []
+    filtered_total_minutes = 0
     
     for session in sessions:
         session_dict = dict(session)
@@ -281,12 +326,40 @@ def sessions():
             current_duration_seconds = (current_time - start_time).total_seconds()
             session_dict['current_duration_minutes'] = int(current_duration_seconds / 60)
             session_dict['start_timestamp'] = start_time.timestamp()
+            # Add current duration to filtered total
+            filtered_total_minutes += session_dict['current_duration_minutes']
         else:
             session_dict['is_active'] = False
             session_dict['current_duration_minutes'] = session['duration_minutes']
             session_dict['start_timestamp'] = None
+            # Add stored duration to filtered total
+            if session['duration_minutes']:
+                filtered_total_minutes += session['duration_minutes']
         
         processed_sessions.append(session_dict)
+    
+    # Calculate summary statistics
+    def format_duration(minutes):
+        if minutes is None or minutes == 0:
+            return "0h 0m"
+        hours = minutes // 60
+        mins = minutes % 60
+        return f"{hours}h {mins}m"
+    
+    summary = {
+        'unfiltered': {
+            'total_sessions': unfiltered_stats['total_sessions'] or 0,
+            'active_sessions': unfiltered_stats['active_sessions'] or 0,
+            'total_minutes': unfiltered_stats['total_minutes'] or 0,
+            'formatted_duration': format_duration(unfiltered_stats['total_minutes'])
+        },
+        'filtered': {
+            'total_sessions': filtered_stats['total_sessions'] or 0,
+            'active_sessions': filtered_stats['active_sessions'] or 0,
+            'total_minutes': filtered_total_minutes,  # Use calculated total including active sessions
+            'formatted_duration': format_duration(filtered_total_minutes)
+        }
+    }
     
     # Get projects for filter dropdown
     projects = conn.execute('SELECT name FROM projects ORDER BY name').fetchall()
@@ -295,6 +368,7 @@ def sessions():
     return render_template('db_browser/sessions.html', 
                          sessions=processed_sessions, 
                          projects=projects,
+                         summary=summary,
                          filters={'project': project_filter, 'category': category_filter, 
                                  'date_from': date_from, 'date_to': date_to})
 
