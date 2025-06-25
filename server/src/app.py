@@ -39,7 +39,7 @@ CORS(app)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 
 # Database configuration
-DATABASE_PATH = os.environ.get('DATABASE_PATH', '/app/data/timetracker.db')
+DATABASE_PATH = os.environ.get('DATABASE_PATH', 'data/timetracker.db')
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DATABASE_PATH}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 

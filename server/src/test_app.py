@@ -1,26 +1,23 @@
 import pytest
 import os
 import tempfile
+
 from app import app, db
 
 @pytest.fixture
 def client():
     """Create a test client for the Flask app"""
-    # Use a temporary database for testing
-    db_fd, db_path = tempfile.mkstemp()
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
-    app.config['TESTING'] = True
-    app.config['SECRET_KEY'] = 'test-secret-key'
-    
-    with app.test_client() as client:
-        with app.app_context():
-            # Initialize database with test configuration
-            db.create_all()
-            yield client
-    
-    # Cleanup
-    os.close(db_fd)
-    os.unlink(db_path)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "test.db")
+        os.environ['DATABASE_PATH'] = db_path
+        app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
+        app.config['TESTING'] = True
+        app.config['SECRET_KEY'] = 'test-secret-key'
+
+        with app.test_client() as client:
+            with app.app_context():
+                db.create_all()
+                yield client
 
 def test_health(client):
     """Test the health check endpoint"""
