@@ -1,0 +1,23 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+### Added
+- Trash can icon and delete functionality for projects and subprojects on the projects page.
+- `.gitignore` and `.dockerignore` for Python, Docker, and editor files.
+- `pyproject.toml` for unified tool configuration (Black, isort, mypy, pytest, coverage).
+- `requirements-dev.txt` for development dependencies.
+- `.pre-commit-config.yaml` for code quality hooks.
+- `Makefile` for common development and Docker commands.
+- `CONTRIBUTING.md` for contributing guidelines.
+- `CHANGELOG.md` for tracking changes.
+
+### Removed
+- Old `pytest.ini` (moved config to `pyproject.toml`).
+- Empty/unused `server/src/app_new.py`.
+
+### Changed
+- Cleaned up repository and improved project structure for maintainability. 
