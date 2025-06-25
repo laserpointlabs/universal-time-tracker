@@ -14,6 +14,7 @@ def client():
     
     with app.test_client() as client:
         with app.app_context():
+            # Initialize database with test configuration
             db.create_all()
             yield client
     

@@ -56,10 +56,20 @@ from db_browser import db_browser
 # Register blueprints
 app.register_blueprint(db_browser)
 
-# Create tables
-with app.app_context():
-    db.create_all()
-    logger.info("Database tables created/verified")
+def init_database():
+    """Initialize the database tables"""
+    with app.app_context():
+        # Ensure the database directory exists
+        db_dir = os.path.dirname(DATABASE_PATH)
+        if db_dir and not os.path.exists(db_dir):
+            os.makedirs(db_dir, exist_ok=True)
+        
+        db.create_all()
+        logger.info("Database tables created/verified")
+
+# Only create tables if we're not in testing mode
+if not app.config.get('TESTING', False):
+    init_database()
 
 @app.route('/health', methods=['GET'])
 def health_check():
