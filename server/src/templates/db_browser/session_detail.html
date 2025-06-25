@@ -28,6 +28,18 @@
                         <td>{{ session.id }}</td>
                     </tr>
                     <tr>
+                        <td><strong>Top-level Project:</strong></td>
+                        <td>
+                            {% if toplevel_project %}
+                                <a href="{{ url_for('db_browser.project_detail', project_id=toplevel_project.id) }}">
+                                    <i class="bi bi-folder"></i> {{ toplevel_project.name }}
+                                </a>
+                            {% else %}
+                                <span class="text-muted">(This is a top-level project)</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
                         <td><strong>Project:</strong></td>
                         <td>{{ session.project_name }}</td>
                     </tr>

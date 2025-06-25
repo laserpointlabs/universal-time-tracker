@@ -262,7 +262,7 @@ def session_detail(session_id):
     conn = get_db_connection()
     
     session = conn.execute('''
-        SELECT s.*, p.name as project_name
+        SELECT s.*, p.name as project_name, p.parent_id as project_parent_id, p.id as project_id
         FROM sessions s
         JOIN projects p ON s.project_id = p.id
         WHERE s.id = ?
@@ -273,11 +273,24 @@ def session_detail(session_id):
         flash('Session not found', 'error')
         return redirect(url_for('db_browser.sessions'))
     
+    # Fetch the top-level project if this project is a subproject
+    toplevel_project = None
+    if session['project_parent_id']:
+        # Get the top-level ancestor
+        parent_id = session['project_parent_id']
+        while parent_id:
+            parent = conn.execute('SELECT id, name, parent_id FROM projects WHERE id = ?', (parent_id,)).fetchone()
+            if parent:
+                toplevel_project = parent
+                parent_id = parent['parent_id']
+            else:
+                break
+    
     breaks = conn.execute('SELECT * FROM breaks WHERE session_id = ? ORDER BY start_time', 
                          (session_id,)).fetchall()
     
     conn.close()
-    return render_template('db_browser/session_detail.html', session=session, breaks=breaks)
+    return render_template('db_browser/session_detail.html', session=session, breaks=breaks, toplevel_project=toplevel_project)
 
 @db_browser.route('/db/sessions/<int:session_id>/edit', methods=['GET', 'POST'])
 def edit_session(session_id):
