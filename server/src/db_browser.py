@@ -4,7 +4,7 @@ Simple Database Browser for Universal Time Tracker
 Provides web-based database viewing and editing capabilities
 """
 
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, Response
 from datetime import datetime, timedelta
 import json
 import sqlite3
@@ -235,25 +235,77 @@ def edit_session(session_id):
 
 @db_browser.route('/db/export')
 def export_data():
-    """Export database as JSON"""
+    """Export database as JSON or CSV"""
+    format_type = request.args.get('format')
+    table = request.args.get('table')
+    
     conn = get_db_connection()
     
-    # Get all data
-    projects = conn.execute('SELECT * FROM projects').fetchall()
-    sessions = conn.execute('SELECT * FROM sessions').fetchall()
-    breaks = conn.execute('SELECT * FROM breaks').fetchall()
-    
-    # Convert to dictionaries
-    data = {
-        'exported_at': datetime.now().isoformat(),
-        'projects': [dict(p) for p in projects],
-        'sessions': [dict(s) for s in sessions],
-        'breaks': [dict(b) for b in breaks]
+    # Get statistics for the template
+    stats = {
+        'projects': conn.execute('SELECT COUNT(*) FROM projects').fetchone()[0],
+        'sessions': conn.execute('SELECT COUNT(*) FROM sessions').fetchone()[0],
+        'breaks': conn.execute('SELECT COUNT(*) FROM breaks').fetchone()[0],
+        'total_hours': conn.execute('SELECT COALESCE(SUM(duration_minutes), 0) / 60.0 FROM sessions').fetchone()[0]
     }
     
-    conn.close()
+    if format_type == 'csv' and table:
+        # CSV export for specific table
+        if table == 'projects':
+            data = conn.execute('SELECT * FROM projects').fetchall()
+            headers = ['id', 'name', 'type', 'language', 'framework', 'path', 'git_remote', 'created_at']
+        elif table == 'sessions':
+            data = conn.execute('''
+                SELECT s.*, p.name as project_name 
+                FROM sessions s 
+                JOIN projects p ON s.project_id = p.id
+            ''').fetchall()
+            headers = ['id', 'project_id', 'project_name', 'start_time', 'end_time', 'duration_minutes', 'category', 'description']
+        else:
+            conn.close()
+            flash('Invalid table specified', 'error')
+            return redirect(url_for('db_browser.export_data'))
+        
+        # Create CSV response
+        import csv
+        from io import StringIO
+        
+        si = StringIO()
+        cw = csv.writer(si)
+        cw.writerow(headers)
+        cw.writerows(data)
+        
+        conn.close()
+        
+        output = si.getvalue()
+        return Response(
+            output,
+            mimetype='text/csv',
+            headers={'Content-Disposition': f'attachment; filename={table}_export.csv'}
+        )
     
-    return jsonify(data)
+    elif format_type == 'json':
+        # JSON export
+        projects = conn.execute('SELECT * FROM projects').fetchall()
+        sessions = conn.execute('SELECT * FROM sessions').fetchall()
+        breaks = conn.execute('SELECT * FROM breaks').fetchall()
+        
+        # Convert to dictionaries
+        data = {
+            'exported_at': datetime.now().isoformat(),
+            'projects': [dict(p) for p in projects],
+            'sessions': [dict(s) for s in sessions],
+            'breaks': [dict(b) for b in breaks]
+        }
+        
+        conn.close()
+        
+        return jsonify(data)
+    
+    else:
+        # Show export page (default)
+        conn.close()
+        return render_template('db_browser/export.html', stats=stats)
 
 @db_browser.route('/db/search')
 def search():

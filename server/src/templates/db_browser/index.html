@@ -1,146 +1,113 @@
 {% extends "db_browser/base.html" %}
 
-{% block title %}Dashboard{% endblock %}
+{% block title %}Overview{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">Database Overview</h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <div class="btn-group me-2">
-            <a href="{{ url_for('db_browser.export_data') }}" class="btn btn-sm btn-outline-secondary">
+<div class="page-header">
+    <div class="row align-items-center">
+        <div class="col">
+            <h1 class="h2 mb-2">🗄️ Database Overview</h1>
+            <p class="text-muted mb-0">Complete overview of your time tracking data</p>
+        </div>
+        <div class="col-auto">
+            <a href="{{ url_for('db_browser.export_data') }}" class="btn btn-primary">
                 <i class="bi bi-download"></i> Export Data
             </a>
         </div>
     </div>
 </div>
 
-<div class="row">
-    <div class="col-md-3 mb-4">
-        <div class="card text-white bg-primary">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5 class="card-title">Projects</h5>
-                        <h2 class="mb-0">{{ stats.projects }}</h2>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="bi bi-folder fs-1"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-title">Projects</div>
+        <div class="stat-value">{{ stats.projects }}</div>
+        <i class="bi bi-folder text-muted"></i>
     </div>
     
-    <div class="col-md-3 mb-4">
-        <div class="card text-white bg-success">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5 class="card-title">Sessions</h5>
-                        <h2 class="mb-0">{{ stats.sessions }}</h2>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="bi bi-clock fs-1"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div class="stat-card">
+        <div class="stat-title">Sessions</div>
+        <div class="stat-value">{{ stats.sessions }}</div>
+        <i class="bi bi-clock text-muted"></i>
     </div>
     
-    <div class="col-md-3 mb-4">
-        <div class="card text-white bg-info">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5 class="card-title">Breaks</h5>
-                        <h2 class="mb-0">{{ stats.breaks }}</h2>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="bi bi-cup-hot fs-1"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div class="stat-card">
+        <div class="stat-title">Breaks</div>
+        <div class="stat-value">{{ stats.breaks }}</div>
+        <i class="bi bi-cup-hot text-muted"></i>
     </div>
     
-    <div class="col-md-3 mb-4">
-        <div class="card text-white bg-warning">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5 class="card-title">Active</h5>
-                        <h2 class="mb-0">{{ stats.active_sessions }}</h2>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="bi bi-play-circle fs-1"></i>
-                    </div>
+    <div class="stat-card">
+        <div class="stat-title">Active Sessions</div>
+        <div class="stat-value">{{ stats.active_sessions }}</div>
+        <i class="bi bi-play-circle text-muted"></i>
+    </div>
+</div>
+
+<div class="content-card">
+    <h3 class="mb-3">📊 Total Time Tracked</h3>
+    <div class="row align-items-center">
+        <div class="col-md-6">
+            <div class="stat-value text-primary">{{ "%.1f"|format(stats.total_hours) }} hours</div>
+            <p class="text-muted">Across all projects and sessions</p>
+        </div>
+        <div class="col-md-6">
+            <div class="progress" style="height: 30px; border-radius: 8px;">
+                <div class="progress-bar bg-primary" role="progressbar" 
+                     style="width: {{ (stats.total_hours / 100) * 100 }}%">
+                    {{ "%.1f"|format(stats.total_hours) }}h
                 </div>
             </div>
+            <small class="text-muted">Progress indicator (100h = 100%)</small>
         </div>
     </div>
 </div>
 
 <div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5>Total Time Tracked</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h2 class="text-primary">{{ "%.1f"|format(stats.total_hours) }} hours</h2>
-                        <p class="text-muted">Across all projects and sessions</p>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="progress" style="height: 30px;">
-                            <div class="progress-bar bg-primary" role="progressbar" 
-                                 style="width: {{ (stats.total_hours / 100) * 100 }}%">
-                                {{ "%.1f"|format(stats.total_hours) }}h
-                            </div>
-                        </div>
-                        <small class="text-muted">Progress indicator (100h = 100%)</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row mt-4">
     <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5>Quick Actions</h5>
-            </div>
-            <div class="card-body">
-                <div class="d-grid gap-2">
-                    <a href="{{ url_for('db_browser.projects') }}" class="btn btn-primary">
-                        <i class="bi bi-folder"></i> View All Projects
-                    </a>
-                    <a href="{{ url_for('db_browser.sessions') }}" class="btn btn-success">
-                        <i class="bi bi-clock"></i> View All Sessions
-                    </a>
-                    <a href="{{ url_for('db_browser.search') }}" class="btn btn-info">
-                        <i class="bi bi-search"></i> Search Database
-                    </a>
-                </div>
+        <div class="content-card">
+            <h3 class="mb-3">⚡ Quick Actions</h3>
+            <div class="d-grid gap-3">
+                <a href="{{ url_for('db_browser.projects') }}" class="btn btn-primary">
+                    <i class="bi bi-folder"></i> View All Projects
+                </a>
+                <a href="{{ url_for('db_browser.sessions') }}" class="btn btn-success">
+                    <i class="bi bi-clock"></i> View All Sessions
+                </a>
+                <a href="{{ url_for('db_browser.search') }}" class="btn btn-info">
+                    <i class="bi bi-search"></i> Search Database
+                </a>
             </div>
         </div>
     </div>
     
     <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5>Database Info</h5>
-            </div>
-            <div class="card-body">
-                <ul class="list-unstyled">
-                    <li><strong>Database:</strong> SQLite</li>
-                    <li><strong>Location:</strong> data/timetracker.db</li>
-                    <li><strong>Tables:</strong> projects, sessions, breaks</li>
-                    <li><strong>Last Updated:</strong> <span id="current-time"></span></li>
-                </ul>
+        <div class="content-card">
+            <h3 class="mb-3">ℹ️ Database Info</h3>
+            <div class="row">
+                <div class="col-6">
+                    <div class="mb-3">
+                        <div class="text-muted small">Database Type</div>
+                        <div class="fw-bold">SQLite</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="mb-3">
+                        <div class="text-muted small">Tables</div>
+                        <div class="fw-bold">3</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="mb-3">
+                        <div class="text-muted small">Location</div>
+                        <div class="fw-bold">data/timetracker.db</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="mb-3">
+                        <div class="text-muted small">Last Updated</div>
+                        <div class="fw-bold" id="current-time">-</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

@@ -1,0 +1,95 @@
+{% extends "db_browser/base.html" %}
+
+{% block title %}Export Data{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="row align-items-center">
+        <div class="col">
+            <h1 class="h2 mb-2">📤 Export Data</h1>
+            <p class="text-muted mb-0">Export your time tracking data in various formats</p>
+        </div>
+    </div>
+</div>
+
+<div class="content-card">
+    <h3 class="mb-3">📊 Export Options</h3>
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-file-earmark-json fs-1 text-primary mb-3"></i>
+                    <h5 class="card-title">JSON Export</h5>
+                    <p class="card-text">Export all data as JSON format for programmatic access and analysis.</p>
+                    <a href="{{ url_for('db_browser.export_data') }}" class="btn btn-primary" download="timetracker_export.json">
+                        <i class="bi bi-download"></i> Download JSON
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-file-earmark-text fs-1 text-success mb-3"></i>
+                    <h5 class="card-title">CSV Export</h5>
+                    <p class="card-text">Export data as CSV files for spreadsheet analysis and reporting.</p>
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('db_browser.export_data') }}?format=csv&table=projects" class="btn btn-success">
+                            <i class="bi bi-download"></i> Projects CSV
+                        </a>
+                        <a href="{{ url_for('db_browser.export_data') }}?format=csv&table=sessions" class="btn btn-success">
+                            <i class="bi bi-download"></i> Sessions CSV
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="content-card">
+    <h3 class="mb-3">📈 Export Statistics</h3>
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-title">Total Projects</div>
+            <div class="stat-value">{{ stats.projects }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-title">Total Sessions</div>
+            <div class="stat-value">{{ stats.sessions }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-title">Total Breaks</div>
+            <div class="stat-value">{{ stats.breaks }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-title">Total Hours</div>
+            <div class="stat-value">{{ "%.1f"|format(stats.total_hours) }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="content-card">
+    <h3 class="mb-3">💡 Export Tips</h3>
+    <div class="row">
+        <div class="col-md-6">
+            <h5>JSON Export</h5>
+            <ul class="text-muted">
+                <li>Complete data structure with relationships</li>
+                <li>Perfect for data analysis and backup</li>
+                <li>Can be imported into other systems</li>
+                <li>Includes all metadata and timestamps</li>
+            </ul>
+        </div>
+        <div class="col-md-6">
+            <h5>CSV Export</h5>
+            <ul class="text-muted">
+                <li>Easy to open in Excel or Google Sheets</li>
+                <li>Good for reporting and presentations</li>
+                <li>Can be filtered and sorted easily</li>
+                <li>Separate files for each data type</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %} 
