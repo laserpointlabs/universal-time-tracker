@@ -20,6 +20,17 @@ from openai import OpenAI
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+def get_user_id():
+    """Safely get user ID, with fallbacks for Docker containers"""
+    try:
+        return os.getlogin()
+    except OSError:
+        # Fallback for Docker containers or environments without proper user context
+        try:
+            return os.environ.get('USER', os.environ.get('USERNAME', 'unknown'))
+        except:
+            return 'unknown'
+
 # Initialize Flask app
 app = Flask(__name__)
 CORS(app)
@@ -94,7 +105,7 @@ def create_or_update_project():
         project.path = data.get('path', project.path)
         project.git_remote = data.get('git_remote', project.git_remote)
         project.last_activity = datetime.now()
-        project.userid = os.getlogin()
+        project.userid = get_user_id()
     else:
         # Create new project
         project = Project(
@@ -106,7 +117,7 @@ def create_or_update_project():
             git_remote=data.get('git_remote'),
             created_at=datetime.now(),
             last_activity=datetime.now(),
-            userid=os.getlogin()
+            userid=get_user_id()
         )
         db.session.add(project)
     
@@ -139,7 +150,7 @@ def start_session():
             type='development',
             created_at=datetime.now(),
             last_activity=datetime.now(),
-            userid=os.getlogin()
+            userid=get_user_id()
         )
         db.session.add(project)
         db.session.flush()  # Get project.id
@@ -161,7 +172,7 @@ def start_session():
         start_time=datetime.now(),
         category=category,
         description=description,
-        userid=os.getlogin()
+        userid=get_user_id()
     )
     
     db.session.add(session)
@@ -271,8 +282,7 @@ def toggle_break():
         new_break = Break(
             session_id=session.id,
             start_time=datetime.now(),
-            break_type=break_type,
-            userid=os.getlogin()
+            break_type=break_type
         )
         
         db.session.add(new_break)
