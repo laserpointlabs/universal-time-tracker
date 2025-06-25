@@ -393,7 +393,7 @@ def edit_session(session_id):
 
 @db_browser.route('/db/sessions/<int:session_id>/delete', methods=['POST'])
 def delete_session(session_id):
-    """Delete a session and its breaks"""
+    """Delete a session and its breaks, preserving filter state if present"""
     conn = get_db_connection()
     # Delete breaks first (if any)
     conn.execute('DELETE FROM breaks WHERE session_id = ?', (session_id,))
@@ -402,7 +402,13 @@ def delete_session(session_id):
     conn.commit()
     conn.close()
     flash('Session deleted successfully.', 'success')
-    return redirect(url_for('db_browser.sessions'))
+    # Preserve filters if present
+    filters = {}
+    for key in ['project', 'category', 'date_from', 'date_to']:
+        value = request.form.get(key)
+        if value:
+            filters[key] = value
+    return redirect(url_for('db_browser.sessions', **filters))
 
 @db_browser.route('/db/export')
 def export_data():
