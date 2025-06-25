@@ -286,19 +286,16 @@ def edit_session(session_id):
     
     if request.method == 'POST':
         data = request.form
-        
         # Parse datetime
         start_time = datetime.fromisoformat(data['start_time'].replace('Z', '+00:00'))
         end_time = None
         if data['end_time']:
             end_time = datetime.fromisoformat(data['end_time'].replace('Z', '+00:00'))
-        
         # Calculate duration
         duration_minutes = None
         if start_time and end_time:
             duration_seconds = (end_time - start_time).total_seconds()
             duration_minutes = int(duration_seconds / 60)
-        
         # Update session
         conn.execute('''
             UPDATE sessions 
@@ -307,70 +304,57 @@ def edit_session(session_id):
             WHERE id = ?
         ''', (start_time, end_time, duration_minutes, data['category'], 
               data['description'], session_id))
-        
         # Handle breaks
-        # Get existing break IDs
         existing_breaks = conn.execute('SELECT id FROM breaks WHERE session_id = ?', (session_id,)).fetchall()
         existing_break_ids = [b[0] for b in existing_breaks]
-        
-        # Process break data from form
         break_ids = request.form.getlist('break_id[]')
         break_types = request.form.getlist('break_type[]')
         break_start_times = request.form.getlist('break_start_time[]')
         break_end_times = request.form.getlist('break_end_time[]')
-        
-        # Update existing breaks
         for i, break_id in enumerate(break_ids):
             if break_id and break_id != 'new':
                 break_id = int(break_id)
                 if break_id in existing_break_ids:
-                    # Update existing break
                     start_time_break = None
                     end_time_break = None
                     duration_break = None
-                    
                     if break_start_times[i]:
                         start_time_break = datetime.fromisoformat(break_start_times[i].replace('Z', '+00:00'))
                     if break_end_times[i]:
                         end_time_break = datetime.fromisoformat(break_end_times[i].replace('Z', '+00:00'))
-                    
                     if start_time_break and end_time_break:
                         duration_break = int((end_time_break - start_time_break).total_seconds() / 60)
-                    
                     conn.execute('''
                         UPDATE breaks 
                         SET break_type = ?, start_time = ?, end_time = ?, duration_minutes = ?
                         WHERE id = ?
                     ''', (break_types[i], start_time_break, end_time_break, duration_break, break_id))
-        
-        # Add new breaks
         for i, break_id in enumerate(break_ids):
             if break_id == 'new' and break_types[i] and break_start_times[i]:
                 start_time_break = datetime.fromisoformat(break_start_times[i].replace('Z', '+00:00'))
                 end_time_break = None
                 duration_break = None
-                
                 if break_end_times[i]:
                     end_time_break = datetime.fromisoformat(break_end_times[i].replace('Z', '+00:00'))
                     duration_break = int((end_time_break - start_time_break).total_seconds() / 60)
-                
                 conn.execute('''
                     INSERT INTO breaks (session_id, break_type, start_time, end_time, duration_minutes)
                     VALUES (?, ?, ?, ?, ?)
                 ''', (session_id, break_types[i], start_time_break, end_time_break, duration_break))
-        
-        # Delete breaks that were removed
         processed_break_ids = [int(bid) for bid in break_ids if bid and bid != 'new']
         for existing_id in existing_break_ids:
             if existing_id not in processed_break_ids:
                 conn.execute('DELETE FROM breaks WHERE id = ?', (existing_id,))
-        
         conn.commit()
         conn.close()
-        
         flash('Session and breaks updated successfully', 'success')
-        return redirect(url_for('db_browser.session_detail', session_id=session_id))
-    
+        # Preserve filters if present
+        filters = {}
+        for key in ['project', 'category', 'date_from', 'date_to']:
+            value = request.form.get(key)
+            if value:
+                filters[key] = value
+        return redirect(url_for('db_browser.session_detail', session_id=session_id, **filters))
     # GET request - show edit form
     session = conn.execute('''
         SELECT s.*, p.name as project_name
@@ -378,16 +362,12 @@ def edit_session(session_id):
         JOIN projects p ON s.project_id = p.id
         WHERE s.id = ?
     ''', (session_id,)).fetchone()
-    
     if not session:
         conn.close()
         flash('Session not found', 'error')
         return redirect(url_for('db_browser.sessions'))
-    
-    # Get breaks for this session
     breaks = conn.execute('SELECT * FROM breaks WHERE session_id = ? ORDER BY start_time', 
                          (session_id,)).fetchall()
-    
     conn.close()
     return render_template('db_browser/edit_session.html', session=session, breaks=breaks)
 
