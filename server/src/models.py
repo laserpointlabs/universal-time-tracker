@@ -25,6 +25,7 @@ class Project:
         self.created_at = db.Column(db.DateTime, default=datetime.now)
         self.last_activity = db.Column(db.DateTime, default=datetime.now)
         self.parent_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True)
+        self.userid = db.Column(db.String(100), nullable=False)
         
         # Relationships
         self.sessions = db.relationship('Session', backref='project', lazy=True, cascade='all, delete-orphan')
@@ -48,6 +49,7 @@ def create_models(db_instance):
         created_at = db.Column(db.DateTime, default=datetime.now)
         last_activity = db.Column(db.DateTime, default=datetime.now)
         parent_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True)
+        userid = db.Column(db.String(100), nullable=False)
         
         # Relationships
         sessions = db.relationship('Session', backref='project', lazy=True, cascade='all, delete-orphan')
@@ -84,6 +86,7 @@ def create_models(db_instance):
         category = db.Column(db.String(50), default='development')
         description = db.Column(db.Text, nullable=False)
         git_commits = db.Column(db.Text)  # JSON string
+        userid = db.Column(db.String(100), nullable=False)
         
         # Relationships
         breaks = db.relationship('Break', backref='session', lazy=True, cascade='all, delete-orphan')
