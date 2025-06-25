@@ -22,14 +22,42 @@ logger = logging.getLogger(__name__)
 
 def get_user_id():
     """Safely get user ID, with fallbacks for Docker containers"""
+    # First check for explicit user ID in environment
+    explicit_user = os.environ.get('TIME_TRACKER_USER_ID')
+    if explicit_user:
+        return explicit_user
+    
+    # Try to get user from various sources
     try:
+        # Try os.getlogin() first
         return os.getlogin()
     except OSError:
-        # Fallback for Docker containers or environments without proper user context
-        try:
-            return os.environ.get('USER', os.environ.get('USERNAME', 'unknown'))
-        except:
-            return 'unknown'
+        pass
+    
+    # Try environment variables
+    for env_var in ['USER', 'USERNAME', 'LOGNAME', 'HOSTNAME']:
+        user = os.environ.get(env_var)
+        if user and user != 'root':
+            return user
+    
+    # Try to get from /etc/passwd or similar
+    try:
+        import pwd
+        return pwd.getpwuid(os.getuid()).pw_name
+    except (ImportError, OSError, KeyError):
+        pass
+    
+    # Final fallback - try to get hostname or container name
+    try:
+        import socket
+        hostname = socket.gethostname()
+        if hostname and hostname != 'localhost':
+            return hostname
+    except:
+        pass
+    
+    # Last resort fallback
+    return 'unknown'
 
 # Initialize database
 db = SQLAlchemy()
