@@ -4,7 +4,7 @@ Universal Time Tracker Server
 Flask API for centralized time tracking across projects
 """
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
@@ -12,6 +12,9 @@ import os
 import logging
 from collections import defaultdict
 from dateutil import parser
+import sqlite3
+import yaml
+from openai import OpenAI
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -860,521 +863,215 @@ def get_session_patterns():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/v1/analytics/ai-recommendations', methods=['GET'])
+def get_ai_recommendations():
+    """Get AI-powered recommendations based on time tracking data"""
+    project = request.args.get('project')
+    days = request.args.get('days', 30, type=int)
+    
+    if not project:
+        return jsonify({'error': 'Project parameter required'}), 400
+    
+    # Check if OpenAI API key is configured
+    openai_api_key = os.environ.get('OPENAI_API_KEY')
+    if not openai_api_key:
+        return jsonify({
+            'error': 'OpenAI API key not configured. Set OPENAI_API_KEY environment variable.',
+            'recommendations': [
+                "Configure OpenAI API key to get AI-powered recommendations",
+                "Focus on maintaining consistent daily work hours",
+                "Take regular breaks every 90-120 minutes",
+                "Schedule important tasks during your peak productivity hours"
+            ]
+        }), 200
+    
+    try:
+        start_date = datetime.now() - timedelta(days=days)
+        
+        project_obj = Project.query.filter_by(name=project).first()
+        if not project_obj:
+            return jsonify({'error': 'Project not found'}), 404
+        
+        # Get comprehensive data for analysis
+        sessions = Session.query.filter(
+            Session.project_id == project_obj.id,
+            Session.start_time >= start_date,
+            Session.end_time.isnot(None)
+        ).all()
+        
+        if not sessions:
+            return jsonify({
+                'project': project,
+                'recommendations': ['Start tracking sessions to get personalized recommendations!'],
+                'insights': 'No data available for analysis'
+            })
+        
+        # Collect detailed analytics data
+        analytics_data = {
+            'project': project,
+            'period_days': days,
+            'total_sessions': len(sessions),
+            'total_hours': 0,
+            'daily_patterns': {},
+            'hourly_patterns': defaultdict(float),
+            'category_breakdown': defaultdict(float),
+            'session_lengths': [],
+            'break_data': [],
+            'work_consistency': {},
+            'productivity_metrics': {}
+        }
+        
+        # Analyze sessions
+        for session in sessions:
+            duration_hours = (session.end_time - session.start_time).total_seconds() / 3600
+            analytics_data['total_hours'] += duration_hours
+            analytics_data['session_lengths'].append(duration_hours)
+            
+            # Daily patterns
+            date_key = session.start_time.strftime('%Y-%m-%d')
+            if date_key not in analytics_data['daily_patterns']:
+                analytics_data['daily_patterns'][date_key] = {
+                    'hours': 0,
+                    'sessions': 0,
+                    'categories': set()
+                }
+            analytics_data['daily_patterns'][date_key]['hours'] += duration_hours
+            analytics_data['daily_patterns'][date_key]['sessions'] += 1
+            analytics_data['daily_patterns'][date_key]['categories'].add(session.category)
+            
+            # Hourly patterns
+            hour_key = session.start_time.hour
+            analytics_data['hourly_patterns'][hour_key] += duration_hours
+            
+            # Category breakdown
+            analytics_data['category_breakdown'][session.category] += duration_hours
+            
+            # Get breaks for this session
+            breaks = Break.query.filter_by(session_id=session.id).all()
+            for break_obj in breaks:
+                if break_obj.end_time:
+                    break_duration = (break_obj.end_time - break_obj.start_time).total_seconds() / 60
+                    analytics_data['break_data'].append({
+                        'type': break_obj.break_type,
+                        'duration_minutes': break_duration
+                    })
+        
+        # Calculate additional metrics
+        daily_hours = [data['hours'] for data in analytics_data['daily_patterns'].values()]
+        analytics_data['productivity_metrics'] = {
+            'avg_daily_hours': sum(daily_hours) / len(daily_hours) if daily_hours else 0,
+            'avg_session_length': sum(analytics_data['session_lengths']) / len(analytics_data['session_lengths']),
+            'total_break_minutes': sum(b['duration_minutes'] for b in analytics_data['break_data']),
+            'most_productive_hour': max(analytics_data['hourly_patterns'].items(), key=lambda x: x[1])[0] if analytics_data['hourly_patterns'] else 9,
+            'work_days': len(analytics_data['daily_patterns']),
+            'consistency_score': len([h for h in daily_hours if 2 <= h <= 8]) / len(daily_hours) if daily_hours else 0
+        }
+        
+        # Prepare data for OpenAI analysis
+        analysis_prompt = f"""
+You are a productivity expert analyzing time tracking data for a software developer. 
+Provide 5-7 specific, actionable recommendations based on this data:
+
+PROJECT: {project}
+ANALYSIS PERIOD: {days} days
+
+KEY METRICS:
+- Total Hours: {analytics_data['total_hours']:.1f} hours
+- Total Sessions: {analytics_data['total_sessions']}
+- Average Daily Hours: {analytics_data['productivity_metrics']['avg_daily_hours']:.1f}
+- Average Session Length: {analytics_data['productivity_metrics']['avg_session_length']:.1f} hours
+- Work Days: {analytics_data['productivity_metrics']['work_days']} out of {days}
+- Consistency Score: {analytics_data['productivity_metrics']['consistency_score']:.1%}
+
+TIME DISTRIBUTION:
+{chr(10).join([f"- {cat}: {hours:.1f} hours" for cat, hours in analytics_data['category_breakdown'].items()])}
+
+PRODUCTIVITY PATTERNS:
+- Most Productive Hour: {analytics_data['productivity_metrics']['most_productive_hour']}:00
+- Total Break Time: {analytics_data['productivity_metrics']['total_break_minutes']:.0f} minutes
+- Break-to-Work Ratio: {(analytics_data['productivity_metrics']['total_break_minutes'] / (analytics_data['total_hours'] * 60) * 100):.1f}%
+
+SESSION ANALYSIS:
+- Short sessions (<30 min): {len([s for s in analytics_data['session_lengths'] if s < 0.5])}
+- Medium sessions (30 min - 3 hours): {len([s for s in analytics_data['session_lengths'] if 0.5 <= s <= 3])}
+- Long sessions (>3 hours): {len([s for s in analytics_data['session_lengths'] if s > 3])}
+
+Provide recommendations that are:
+1. Specific and actionable
+2. Based on the data patterns shown
+3. Focused on productivity, work-life balance, and sustainable work habits
+4. Tailored to software development work
+5. Include both immediate improvements and long-term strategies
+
+Format as a JSON array of recommendation strings.
+"""
+
+        # Call OpenAI API
+        client = OpenAI(api_key=openai_api_key)
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a productivity expert specializing in software development workflows. Provide concise, actionable recommendations based on time tracking data."
+                },
+                {
+                    "role": "user",
+                    "content": analysis_prompt
+                }
+            ],
+            max_tokens=500,
+            temperature=0.7
+        )
+        
+        # Parse recommendations from OpenAI response
+        ai_response = response.choices[0].message.content.strip()
+        
+        # Try to extract JSON array, fallback to parsing text
+        try:
+            import json
+            recommendations = json.loads(ai_response)
+        except:
+            # Fallback: split by lines and clean up
+            recommendations = [line.strip().lstrip('- ').lstrip('* ').lstrip('1. ').lstrip('2. ').lstrip('3. ').lstrip('4. ').lstrip('5. ').lstrip('6. ').lstrip('7. ') 
+                             for line in ai_response.split('\n') 
+                             if line.strip() and not line.strip().startswith('{') and not line.strip().startswith('}')]
+            recommendations = [rec for rec in recommendations if len(rec) > 10]  # Filter out short lines
+        
+        return jsonify({
+            'project': project,
+            'period_days': days,
+            'recommendations': recommendations[:7],  # Limit to 7 recommendations
+            'insights': {
+                'total_hours': round(analytics_data['total_hours'], 2),
+                'avg_daily_hours': round(analytics_data['productivity_metrics']['avg_daily_hours'], 2),
+                'consistency_score': round(analytics_data['productivity_metrics']['consistency_score'] * 100, 1),
+                'most_productive_hour': analytics_data['productivity_metrics']['most_productive_hour'],
+                'work_days': analytics_data['productivity_metrics']['work_days']
+            },
+            'data_summary': {
+                'sessions_analyzed': len(sessions),
+                'categories_tracked': len(analytics_data['category_breakdown']),
+                'break_sessions': len(analytics_data['break_data'])
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error generating AI recommendations: {str(e)}")
+        return jsonify({
+            'error': 'Failed to generate AI recommendations',
+            'recommendations': [
+                "Focus on maintaining consistent daily work hours",
+                "Take regular breaks every 90-120 minutes",
+                "Schedule important tasks during your peak productivity hours",
+                "Track your time consistently to get better insights"
+            ]
+        }), 500
+
 @app.route('/dashboard')
 def dashboard():
     """Serve interactive analytics dashboard"""
-    html_content = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Time Tracker Analytics Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-        
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-        
-        .header {
-            text-align: center;
-            color: white;
-            margin-bottom: 30px;
-        }
-        
-        .header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-        }
-        
-        .controls {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 20px;
-            border-radius: 15px;
-            margin-bottom: 30px;
-            backdrop-filter: blur(10px);
-        }
-        
-        .controls input, .controls select, .controls button {
-            padding: 10px 15px;
-            margin: 5px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-        }
-        
-        .controls button {
-            background: #4CAF50;
-            color: white;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-        
-        .controls button:hover {
-            background: #45a049;
-        }
-        
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        
-        .card {
-            background: rgba(255, 255, 255, 0.95);
-            padding: 25px;
-            border-radius: 15px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
-        }
-        
-        .card h3 {
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 1.3rem;
-        }
-        
-        .heatmap-container {
-            grid-column: 1 / -1;
-        }
-        
-        .heatmap {
-            display: grid;
-            grid-template-columns: repeat(53, 1fr);
-            gap: 2px;
-            margin: 20px 0;
-        }
-        
-        .heatmap-week {
-            display: grid;
-            grid-template-rows: repeat(7, 1fr);
-            gap: 2px;
-        }
-        
-        .heatmap-day {
-            width: 12px;
-            height: 12px;
-            border-radius: 2px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .heatmap-day:hover {
-            transform: scale(1.3);
-            border: 2px solid #333;
-        }
-        
-        .level-0 { background-color: #ebedf0; }
-        .level-1 { background-color: #c6e48b; }
-        .level-2 { background-color: #7bc96f; }
-        .level-3 { background-color: #239a3b; }
-        .level-4 { background-color: #196127; }
-        
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
-        }
-        
-        .stat-item {
-            text-align: center;
-            padding: 15px;
-            background: rgba(0, 0, 0, 0.05);
-            border-radius: 8px;
-        }
-        
-        .stat-value {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #4CAF50;
-        }
-        
-        .stat-label {
-            color: #666;
-            margin-top: 5px;
-        }
-        
-        .error {
-            color: #f44336;
-            background: rgba(244, 67, 54, 0.1);
-            padding: 15px;
-            border-radius: 8px;
-            margin: 10px 0;
-        }
-        
-        .loading {
-            text-align: center;
-            color: #666;
-            padding: 40px;
-        }
-        
-        .chart-container {
-            position: relative;
-            height: 300px;
-            margin-top: 20px;
-        }
-        
-        .recommendations {
-            background: rgba(76, 175, 80, 0.1);
-            border-left: 4px solid #4CAF50;
-            padding: 15px;
-            margin: 15px 0;
-            border-radius: 0 8px 8px 0;
-        }
-        
-        .recommendations h4 {
-            margin-bottom: 10px;
-            color: #4CAF50;
-        }
-        
-        .recommendations ul {
-            list-style-position: inside;
-            color: #333;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>📊 Time Tracker Analytics</h1>
-            <p>Visualize your coding patterns and productivity insights</p>
-        </div>
-        
-        <div class="controls">
-            <select id="projectSelect" onchange="loadDashboard()">
-                <option value="">Select a project...</option>
-            </select>
-            <select id="yearSelect" onchange="loadDashboard()">
-                <option value="2024">2024</option>
-                <option value="2023">2023</option>
-                <option value="2025">2025</option>
-            </select>
-            <button onclick="loadDashboard()">Load Analytics</button>
-            <button onclick="refreshData()">Refresh</button>
-        </div>
-        
-        <div id="dashboardContent">
-            <div class="loading">Select a project and click "Load Analytics" to get started!</div>
-        </div>
-    </div>
-
-    <script>
-        let currentProject = '';
-        let currentYear = new Date().getFullYear();
-        
-        function loadDashboard() {
-            currentProject = document.getElementById('projectSelect').value.trim();
-            currentYear = document.getElementById('yearSelect').value;
-            
-            if (!currentProject) {
-                document.getElementById('dashboardContent').innerHTML = 
-                    '<div class="loading">Please select a project to view analytics</div>';
-                return;
-            }
-            
-            document.getElementById('dashboardContent').innerHTML = '<div class="loading">Loading analytics...</div>';
-            
-            Promise.all([
-                fetchHeatmap(),
-                fetchCategoryBreakdown(),
-                fetchProductivityTrends(),
-                fetchSessionPatterns()
-            ]).then(([heatmap, categories, trends, patterns]) => {
-                renderDashboard(heatmap, categories, trends, patterns);
-            }).catch(error => {
-                document.getElementById('dashboardContent').innerHTML = 
-                    `<div class="error">Error loading data: ${error.message}</div>`;
-            });
-        }
-        
-        function refreshData() {
-            if (currentProject) {
-                loadDashboard();
-            }
-        }
-        
-        async function fetchHeatmap() {
-            const response = await fetch(`/api/v1/analytics/heatmap?project=${encodeURIComponent(currentProject)}&year=${currentYear}`);
-            if (!response.ok) throw new Error('Failed to fetch heatmap data');
-            return response.json();
-        }
-        
-        async function fetchCategoryBreakdown() {
-            const response = await fetch(`/api/v1/analytics/category-breakdown?project=${encodeURIComponent(currentProject)}&period=month`);
-            if (!response.ok) throw new Error('Failed to fetch category data');
-            return response.json();
-        }
-        
-        async function fetchProductivityTrends() {
-            const response = await fetch(`/api/v1/analytics/productivity-trends?project=${encodeURIComponent(currentProject)}&days=30`);
-            if (!response.ok) throw new Error('Failed to fetch productivity data');
-            return response.json();
-        }
-        
-        async function fetchSessionPatterns() {
-            const response = await fetch(`/api/v1/analytics/session-patterns?project=${encodeURIComponent(currentProject)}&days=30`);
-            if (!response.ok) throw new Error('Failed to fetch session data');
-            return response.json();
-        }
-        
-        async function loadProjects() {
-            try {
-                const response = await fetch('/api/v1/projects');
-                if (!response.ok) throw new Error('Failed to fetch projects');
-                const projects = await response.json();
-                
-                const projectSelect = document.getElementById('projectSelect');
-                
-                // Clear existing options except the first one
-                while (projectSelect.children.length > 1) {
-                    projectSelect.removeChild(projectSelect.lastChild);
-                }
-                
-                // Add project options
-                projects.forEach(project => {
-                    const option = document.createElement('option');
-                    option.value = project.name;
-                    option.textContent = project.name;
-                    projectSelect.appendChild(option);
-                });
-                
-                // Auto-select the first project if available
-                if (projects.length > 0) {
-                    projectSelect.value = projects[0].name;
-                }
-            } catch (error) {
-                console.error('Error loading projects:', error);
-                // Show error in dropdown
-                const projectSelect = document.getElementById('projectSelect');
-                const option = document.createElement('option');
-                option.value = '';
-                option.textContent = 'Error loading projects';
-                option.disabled = true;
-                projectSelect.appendChild(option);
-            }
-        }
-        
-        function renderDashboard(heatmap, categories, trends, patterns) {
-            const content = `
-                <div class="dashboard-grid">
-                    <div class="card heatmap-container">
-                        <h3>🔥 Activity Heatmap (${currentYear})</h3>
-                        <div class="stats-grid">
-                            <div class="stat-item">
-                                <div class="stat-value">${heatmap.stats.total_hours}</div>
-                                <div class="stat-label">Total Hours</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-value">${heatmap.stats.active_days}</div>
-                                <div class="stat-label">Active Days</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-value">${heatmap.stats.avg_hours_per_active_day}</div>
-                                <div class="stat-label">Avg Hours/Day</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-value">${heatmap.stats.max_daily_hours}</div>
-                                <div class="stat-label">Best Day</div>
-                            </div>
-                        </div>
-                        ${renderHeatmap(heatmap.heatmap)}
-                    </div>
-                    
-                    <div class="card">
-                        <h3>📊 Category Breakdown</h3>
-                        <div class="chart-container">
-                            <canvas id="categoryChart"></canvas>
-                        </div>
-                    </div>
-                    
-                    <div class="card">
-                        <h3>📈 Hourly Productivity</h3>
-                        <div class="chart-container">
-                            <canvas id="hourlyChart"></canvas>
-                        </div>
-                    </div>
-                    
-                    <div class="card">
-                        <h3>📅 Weekly Patterns</h3>
-                        <div class="chart-container">
-                            <canvas id="weeklyChart"></canvas>
-                        </div>
-                    </div>
-                    
-                    <div class="card">
-                        <h3>⏱️ Session Analysis</h3>
-                        <div class="stats-grid">
-                            <div class="stat-item">
-                                <div class="stat-value">${patterns.session_lengths.average_hours}</div>
-                                <div class="stat-label">Avg Session</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-value">${patterns.session_lengths.distribution.long_sessions}</div>
-                                <div class="stat-label">Long Sessions</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-value">${patterns.break_analysis.total_break_minutes}</div>
-                                <div class="stat-label">Break Minutes</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-value">${Math.round(patterns.break_analysis.break_to_work_ratio * 100)}%</div>
-                                <div class="stat-label">Break Ratio</div>
-                            </div>
-                        </div>
-                        ${renderRecommendations(patterns.recommendations)}
-                    </div>
-                </div>
-            `;
-            
-            document.getElementById('dashboardContent').innerHTML = content;
-            
-            // Render charts
-            renderCategoryChart(categories);
-            renderHourlyChart(trends);
-            renderWeeklyChart(trends);
-        }
-        
-        function renderHeatmap(heatmapData) {
-            const heatmapHtml = heatmapData.map(week => {
-                const weekHtml = week.map(day => 
-                    `<div class="heatmap-day level-${day.level}" 
-                          title="${day.date}: ${day.hours} hours"
-                          style="opacity: ${day.in_year ? 1 : 0.3}"></div>`
-                ).join('');
-                return `<div class="heatmap-week">${weekHtml}</div>`;
-            }).join('');
-            
-            return `<div class="heatmap">${heatmapHtml}</div>`;
-        }
-        
-        function renderRecommendations(recommendations) {
-            const recHtml = recommendations.map(rec => `<li>${rec}</li>`).join('');
-            return `
-                <div class="recommendations">
-                    <h4>💡 Recommendations</h4>
-                    <ul>${recHtml}</ul>
-                </div>
-            `;
-        }
-        
-        function renderCategoryChart(categories) {
-            const ctx = document.getElementById('categoryChart').getContext('2d');
-            new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: categories.categories.map(c => c.category),
-                    datasets: [{
-                        data: categories.categories.map(c => c.hours),
-                        backgroundColor: [
-                            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
-                            '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
-                        ]
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom'
-                        }
-                    }
-                }
-            });
-        }
-        
-        function renderHourlyChart(trends) {
-            const ctx = document.getElementById('hourlyChart').getContext('2d');
-            const hourlyData = trends.hourly_breakdown;
-            const hours = Array.from({length: 24}, (_, i) => i);
-            const values = hours.map(h => hourlyData[h] || 0);
-            
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: hours.map(h => `${h}:00`),
-                    datasets: [{
-                        label: 'Hours Worked',
-                        data: values,
-                        backgroundColor: 'rgba(54, 162, 235, 0.8)',
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
-        }
-        
-        function renderWeeklyChart(trends) {
-            const ctx = document.getElementById('weeklyChart').getContext('2d');
-            const weeklyData = trends.weekday_breakdown;
-            const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-            const values = days.map(day => weeklyData[day] || 0);
-            
-            new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: days,
-                    datasets: [{
-                        label: 'Hours Worked',
-                        data: values,
-                        borderColor: 'rgba(75, 192, 192, 1)',
-                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
-        }
-        
-        // Set current year as default
-        document.getElementById('yearSelect').value = currentYear;
-        
-        // Load projects when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            loadProjects();
-        });
-        
-        // Also load projects immediately since the script runs after DOM is loaded
-        loadProjects();
-    </script>
-</body>
-</html>
-    """
-    return html_content
+    return render_template('dashboard.html')
 
 if __name__ == '__main__':
     # Ensure data directory exists

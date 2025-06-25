@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time Tracker Analytics Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --success-color: #16a34a;
+            --warning-color: #ca8a04;
+            --danger-color: #dc2626;
+            --info-color: #0891b2;
+            --dark-color: #1f2937;
+            --light-color: #f8fafc;
+            --border-color: #e2e8f0;
+        }
+
+        body {
+            background-color: var(--light-color);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--dark-color) 0%, #374151 100%);
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+
+        .sidebar .nav-link {
+            color: #d1d5db;
+            border-radius: 8px;
+            margin: 2px 0;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            background-color: rgba(255,255,255,0.1);
+            color: white;
+            transform: translateX(4px);
+        }
+
+        .main-content {
+            padding: 24px;
+        }
+
+        .dashboard-header {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .metric-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            border: 1px solid var(--border-color);
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        .metric-label {
+            color: #6b7280;
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .metric-trend {
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-top: 8px;
+        }
+
+        .trend-up { color: var(--success-color); }
+        .trend-down { color: var(--danger-color); }
+        .trend-stable { color: var(--warning-color); }
+
+        .chart-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid var(--border-color);
+            margin-bottom: 24px;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .chart-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--dark-color);
+            margin: 0;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        .heatmap-container {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid var(--border-color);
+            margin-bottom: 24px;
+        }
+
+        .heatmap {
+            display: grid;
+            grid-template-columns: repeat(53, 1fr);
+            gap: 3px;
+            margin: 20px 0;
+        }
+
+        .heatmap-week {
+            display: grid;
+            grid-template-rows: repeat(7, 1fr);
+            gap: 3px;
+        }
+
+        .heatmap-day {
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .heatmap-day:hover {
+            transform: scale(1.4);
+            z-index: 10;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .level-0 { background-color: #f1f5f9; }
+        .level-1 { background-color: #bbf7d0; }
+        .level-2 { background-color: #86efac; }
+        .level-3 { background-color: #4ade80; }
+        .level-4 { background-color: #22c55e; }
+
+        .ai-recommendations {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            margin-bottom: 24px;
+        }
+
+        .ai-recommendations h3 {
+            color: white;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+
+        .recommendation-item {
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            border-left: 4px solid rgba(255,255,255,0.3);
+            transition: all 0.2s ease;
+        }
+
+        .recommendation-item:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateX(4px);
+        }
+
+        .productivity-score {
+            background: linear-gradient(135deg, var(--success-color) 0%, #15803d 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .productivity-score .score {
+            font-size: 4rem;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        .productivity-score .label {
+            font-size: 1.125rem;
+            opacity: 0.9;
+        }
+
+        .insights-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .insight-card {
+            background: white;
+            border-radius: 8px;
+            padding: 16px;
+            border-left: 4px solid var(--primary-color);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .insight-title {
+            font-weight: 600;
+            color: var(--dark-color);
+            margin-bottom: 8px;
+        }
+
+        .insight-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .loading-spinner {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+        }
+
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+
+        .error-message {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 20px 0;
+        }
+
+        .period-selector {
+            background: white;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-weight: 500;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+            border-color: #1d4ed8;
+        }
+
+        .form-select, .form-control {
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .form-select:focus, .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25);
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 16px;
+            }
+            
+            .metric-value {
+                font-size: 2rem;
+            }
+            
+            .chart-container {
+                height: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <div class="px-3 mb-4">
+                        <h5 class="text-white">⏱️ Time Tracker</h5>
+                        <p class="text-muted small">Analytics Dashboard</p>
+                    </div>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/dashboard">
+                                <i class="bi bi-graph-up"></i> Analytics Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/db">
+                                <i class="bi bi-database"></i> Database Browser
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/db/projects">
+                                <i class="bi bi-folder"></i> Manage Projects
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/db/sessions">
+                                <i class="bi bi-clock"></i> View Sessions
+                            </a>
+                        </li>
+                        <li class="nav-item mt-3">
+                            <a class="nav-link text-muted" href="/">
+                                <i class="bi bi-house"></i> Home
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
+                <!-- Dashboard Header -->
+                <div class="dashboard-header">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h1 class="h2 mb-2">📊 Analytics Dashboard</h1>
+                            <p class="text-muted mb-0">Comprehensive insights into your productivity patterns</p>
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-primary" onclick="refreshData()">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Period Selector -->
+                <div class="period-selector">
+                    <div class="row align-items-center">
+                        <div class="col-md-4">
+                            <label for="projectSelect" class="form-label">Project</label>
+                            <select id="projectSelect" class="form-select">
+                                <option value="">Select a project...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="periodSelect" class="form-label">Analysis Period</label>
+                            <select id="periodSelect" class="form-select">
+                                <option value="7">Last 7 days</option>
+                                <option value="30" selected>Last 30 days</option>
+                                <option value="90">Last 90 days</option>
+                                <option value="365">Last year</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="yearSelect" class="form-label">Heatmap Year</label>
+                            <select id="yearSelect" class="form-select">
+                                <option value="2025" selected>2025</option>
+                                <option value="2024">2024</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <button class="btn btn-primary w-100" onclick="loadDashboard()">
+                                <i class="bi bi-graph-up"></i> Load Analytics
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dashboard Content -->
+                <div id="dashboardContent">
+                    <div class="loading-spinner">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-3 text-muted">Select a project and analysis period to get started</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        let currentProject = '';
+        let currentPeriod = 30;
+        let currentYear = new Date().getFullYear();
+        
+        // Set current year as default
+        document.getElementById('yearSelect').value = currentYear;
+        
+        function loadDashboard() {
+            currentProject = document.getElementById('projectSelect').value.trim();
+            currentPeriod = parseInt(document.getElementById('periodSelect').value);
+            currentYear = document.getElementById('yearSelect').value;
+            
+            if (!currentProject) {
+                document.getElementById('dashboardContent').innerHTML = `
+                    <div class="loading-spinner">
+                        <i class="bi bi-exclamation-triangle fs-1 text-muted"></i>
+                        <h4 class="text-muted mt-3">Please select a project</h4>
+                        <p class="text-muted">Choose a project from the dropdown to view analytics.</p>
+                    </div>`;
+                return;
+            }
+            
+            document.getElementById('dashboardContent').innerHTML = `
+                <div class="loading-spinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3">Loading comprehensive analytics...</p>
+                </div>`;
+            
+            Promise.all([
+                fetchHeatmap(),
+                fetchCategoryBreakdown(),
+                fetchProductivityTrends(),
+                fetchSessionPatterns(),
+                fetchAIRecommendations()
+            ]).then(([heatmap, categories, trends, patterns, aiRecommendations]) => {
+                renderDashboard(heatmap, categories, trends, patterns, aiRecommendations);
+            }).catch(error => {
+                document.getElementById('dashboardContent').innerHTML = `
+                    <div class="error-message">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <strong>Error loading data:</strong> ${error.message}
+                    </div>`;
+            });
+        }
+        
+        function refreshData() {
+            if (currentProject) {
+                loadDashboard();
+            }
+        }
+        
+        async function fetchHeatmap() {
+            const response = await fetch(`/api/v1/analytics/heatmap?project=${encodeURIComponent(currentProject)}&year=${currentYear}`);
+            if (!response.ok) throw new Error('Failed to fetch heatmap data');
+            return response.json();
+        }
+        
+        async function fetchCategoryBreakdown() {
+            const response = await fetch(`/api/v1/analytics/category-breakdown?project=${encodeURIComponent(currentProject)}&period=month`);
+            if (!response.ok) throw new Error('Failed to fetch category data');
+            return response.json();
+        }
+        
+        async function fetchProductivityTrends() {
+            const response = await fetch(`/api/v1/analytics/productivity-trends?project=${encodeURIComponent(currentProject)}&days=${currentPeriod}`);
+            if (!response.ok) throw new Error('Failed to fetch productivity data');
+            return response.json();
+        }
+        
+        async function fetchSessionPatterns() {
+            const response = await fetch(`/api/v1/analytics/session-patterns?project=${encodeURIComponent(currentProject)}&days=${currentPeriod}`);
+            if (!response.ok) throw new Error('Failed to fetch session data');
+            return response.json();
+        }
+        
+        async function fetchAIRecommendations() {
+            const response = await fetch(`/api/v1/analytics/ai-recommendations?project=${encodeURIComponent(currentProject)}&days=${currentPeriod}`);
+            if (!response.ok) throw new Error('Failed to fetch AI recommendations');
+            return response.json();
+        }
+        
+        async function loadProjects() {
+            try {
+                const response = await fetch('/api/v1/projects');
+                if (!response.ok) throw new Error('Failed to fetch projects');
+                const projects = await response.json();
+                
+                const projectSelect = document.getElementById('projectSelect');
+                
+                // Clear existing options except the first one
+                while (projectSelect.children.length > 1) {
+                    projectSelect.removeChild(projectSelect.lastChild);
+                }
+                
+                // Add project options
+                projects.forEach(project => {
+                    const option = document.createElement('option');
+                    option.value = project.name;
+                    option.textContent = project.name;
+                    projectSelect.appendChild(option);
+                });
+                
+                // Auto-select the first project if available
+                if (projects.length > 0) {
+                    projectSelect.value = projects[0].name;
+                }
+            } catch (error) {
+                console.error('Error loading projects:', error);
+                const projectSelect = document.getElementById('projectSelect');
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'Error loading projects';
+                option.disabled = true;
+                projectSelect.appendChild(option);
+            }
+        }
+        
+        function renderDashboard(heatmap, categories, trends, patterns, aiRecommendations) {
+            const content = `
+                <!-- Key Metrics Row -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="metric-card">
+                            <div class="metric-value text-primary">${heatmap.stats.total_hours}</div>
+                            <div class="metric-label">Total Hours</div>
+                            <div class="metric-trend trend-up">
+                                <i class="bi bi-arrow-up"></i> ${heatmap.stats.active_days} active days
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-card">
+                            <div class="metric-value text-success">${trends.stats.avg_daily_hours}</div>
+                            <div class="metric-label">Avg Daily Hours</div>
+                            <div class="metric-trend trend-stable">
+                                <i class="bi bi-dash"></i> ${trends.stats.total_sessions} sessions
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-card">
+                            <div class="metric-value text-info">${patterns.session_lengths.average_hours}</div>
+                            <div class="metric-label">Avg Session Length</div>
+                            <div class="metric-trend trend-up">
+                                <i class="bi bi-arrow-up"></i> ${patterns.session_lengths.distribution.long_sessions} long sessions
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-card">
+                            <div class="metric-value text-warning">${Math.round(patterns.break_analysis.break_to_work_ratio * 100)}%</div>
+                            <div class="metric-label">Break Ratio</div>
+                            <div class="metric-trend trend-stable">
+                                <i class="bi bi-dash"></i> ${patterns.break_analysis.total_break_minutes} min breaks
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Productivity Score -->
+                <div class="productivity-score">
+                    <div class="score">${calculateProductivityScore(trends, patterns)}</div>
+                    <div class="label">Productivity Score</div>
+                </div>
+
+                <!-- AI Recommendations -->
+                <div class="ai-recommendations">
+                    <h3><i class="bi bi-robot"></i> AI-Powered Recommendations</h3>
+                    <div class="row">
+                        ${aiRecommendations.recommendations.map(rec => `
+                            <div class="col-md-6 mb-2">
+                                <div class="recommendation-item">
+                                    <i class="bi bi-lightbulb"></i> ${rec}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <!-- Activity Heatmap -->
+                <div class="heatmap-container">
+                    <div class="chart-header">
+                        <h3 class="chart-title">🔥 Activity Heatmap (${currentYear})</h3>
+                        <div class="d-flex align-items-center">
+                            <span class="me-3">Less</span>
+                            <div class="d-flex">
+                                <div class="heatmap-day level-0 me-1"></div>
+                                <div class="heatmap-day level-1 me-1"></div>
+                                <div class="heatmap-day level-2 me-1"></div>
+                                <div class="heatmap-day level-3 me-1"></div>
+                                <div class="heatmap-day level-4"></div>
+                            </div>
+                            <span class="ms-3">More</span>
+                        </div>
+                    </div>
+                    ${renderHeatmap(heatmap.heatmap)}
+                    <div class="row mt-3">
+                        <div class="col-md-3">
+                            <div class="insight-card">
+                                <div class="insight-title">Active Days</div>
+                                <div class="insight-value">${heatmap.stats.active_days}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="insight-card">
+                                <div class="insight-title">Avg Hours/Day</div>
+                                <div class="insight-value">${heatmap.stats.avg_hours_per_active_day}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="insight-card">
+                                <div class="insight-title">Best Day</div>
+                                <div class="insight-value">${heatmap.stats.max_daily_hours}h</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="insight-card">
+                                <div class="insight-title">Consistency</div>
+                                <div class="insight-value">${Math.round((heatmap.stats.active_days / 365) * 100)}%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h3 class="chart-title">📊 Category Distribution</h3>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="categoryChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h3 class="chart-title">📈 Hourly Productivity</h3>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="hourlyChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Insights -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h3 class="chart-title">📅 Weekly Patterns</h3>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="weeklyChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h3 class="chart-title">⏱️ Session Analysis</h3>
+                            </div>
+                            <div class="insights-grid">
+                                <div class="insight-card">
+                                    <div class="insight-title">Average Session</div>
+                                    <div class="insight-value">${patterns.session_lengths.average_hours}h</div>
+                                </div>
+                                <div class="insight-card">
+                                    <div class="insight-title">Long Sessions</div>
+                                    <div class="insight-value">${patterns.session_lengths.distribution.long_sessions}</div>
+                                </div>
+                                <div class="insight-card">
+                                    <div class="insight-title">Break Minutes</div>
+                                    <div class="insight-value">${patterns.break_analysis.total_break_minutes}</div>
+                                </div>
+                                <div class="insight-card">
+                                    <div class="insight-title">Break Ratio</div>
+                                    <div class="insight-value">${Math.round(patterns.break_analysis.break_to_work_ratio * 100)}%</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('dashboardContent').innerHTML = content;
+            
+            // Render charts
+            renderCategoryChart(categories.categories);
+            renderHourlyChart(trends);
+            renderWeeklyChart(trends);
+        }
+        
+        function calculateProductivityScore(trends, patterns) {
+            let score = 0;
+            
+            // Daily hours (0-40 points)
+            const dailyHours = trends.stats.avg_daily_hours;
+            if (dailyHours >= 6) score += 40;
+            else if (dailyHours >= 4) score += 30;
+            else if (dailyHours >= 2) score += 20;
+            else if (dailyHours >= 1) score += 10;
+            
+            // Session length (0-30 points)
+            const avgSession = patterns.session_lengths.average_hours;
+            if (avgSession >= 2) score += 30;
+            else if (avgSession >= 1.5) score += 25;
+            else if (avgSession >= 1) score += 20;
+            else if (avgSession >= 0.5) score += 10;
+            
+            // Break ratio (0-30 points)
+            const breakRatio = patterns.break_analysis.break_to_work_ratio;
+            if (breakRatio >= 0.1 && breakRatio <= 0.2) score += 30;
+            else if (breakRatio >= 0.05 && breakRatio <= 0.25) score += 20;
+            else if (breakRatio >= 0.02 && breakRatio <= 0.3) score += 10;
+            
+            return Math.min(100, Math.round(score));
+        }
+        
+        function renderHeatmap(heatmapData) {
+            let html = '<div class="heatmap">';
+            
+            heatmapData.forEach(week => {
+                html += '<div class="heatmap-week">';
+                week.forEach(day => {
+                    const level = day.level || 0;
+                    const tooltip = day.date ? `${day.date}: ${day.hours} hours` : '';
+                    html += `<div class="heatmap-day level-${level}" title="${tooltip}"></div>`;
+                });
+                html += '</div>';
+            });
+            
+            html += '</div>';
+            return html;
+        }
+        
+        function renderCategoryChart(categories) {
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: categories.map(c => c.category),
+                    datasets: [{
+                        data: categories.map(c => c.hours),
+                        backgroundColor: [
+                            '#3b82f6', '#10b981', '#f59e0b', '#ef4444', 
+                            '#8b5cf6', '#06b6d4', '#84cc16', '#f97316'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function renderHourlyChart(trends) {
+            const ctx = document.getElementById('hourlyChart').getContext('2d');
+            
+            // Convert hourly_breakdown object to arrays for Chart.js
+            const hours = Object.keys(trends.hourly_breakdown).map(h => parseInt(h)).sort((a, b) => a - b);
+            const hourLabels = hours.map(h => `${h}:00`);
+            const hourData = hours.map(h => trends.hourly_breakdown[h]);
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: hourLabels,
+                    datasets: [{
+                        label: 'Hours',
+                        data: hourData,
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 4,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: '#e5e7eb'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function renderWeeklyChart(trends) {
+            const ctx = document.getElementById('weeklyChart').getContext('2d');
+            
+            // Convert weekday_breakdown object to arrays for Chart.js
+            const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+            const weekdayData = weekdays.map(day => trends.weekday_breakdown[day] || 0);
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: weekdays,
+                    datasets: [{
+                        label: 'Hours',
+                        data: weekdayData,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointBackgroundColor: '#10b981',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: '#e5e7eb'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Load projects on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadProjects();
+        });
+    </script>
+</body>
+</html> 
