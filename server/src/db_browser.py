@@ -67,6 +67,15 @@ def project_detail(project_id):
         flash('Project not found', 'error')
         return redirect(url_for('db_browser.projects'))
     
+    # Get master project (parent) if this is a subproject
+    master_project = None
+    if project['parent_id']:
+        master_project = conn.execute('SELECT id, name FROM projects WHERE id = ?', (project['parent_id'],)).fetchone()
+    
+    # Get subprojects if this is a master project
+    subprojects = conn.execute('SELECT id, name, type FROM projects WHERE parent_id = ? ORDER BY name', (project_id,)).fetchall()
+    
+    # Get sessions for this project
     sessions = conn.execute('''
         SELECT s.*, COUNT(b.id) as break_count
         FROM sessions s
@@ -76,8 +85,19 @@ def project_detail(project_id):
         ORDER BY s.start_time DESC
     ''', (project_id,)).fetchall()
     
+    # Calculate total duration including subprojects
+    total_duration = sum(s['duration_minutes'] or 0 for s in sessions)
+    for subproject in subprojects:
+        sub_sessions = conn.execute('SELECT duration_minutes FROM sessions WHERE project_id = ?', (subproject['id'],)).fetchall()
+        total_duration += sum(s['duration_minutes'] or 0 for s in sub_sessions)
+    
     conn.close()
-    return render_template('db_browser/project_detail.html', project=project, sessions=sessions)
+    return render_template('db_browser/project_detail.html', 
+                         project=project, 
+                         sessions=sessions, 
+                         master_project=master_project,
+                         subprojects=subprojects,
+                         total_duration=total_duration)
 
 @db_browser.route('/db/projects/<int:project_id>/edit', methods=['GET', 'POST'])
 def edit_project(project_id):
@@ -86,13 +106,16 @@ def edit_project(project_id):
     
     if request.method == 'POST':
         data = request.form
+        parent_id = data.get('parent_id') or None
+        if parent_id == '' or parent_id == 'None':
+            parent_id = None
         conn.execute('''
             UPDATE projects 
-            SET name = ?, type = ?, language = ?, framework = ?, path = ?, git_remote = ?
+            SET name = ?, type = ?, language = ?, framework = ?, path = ?, git_remote = ?, parent_id = ?
             WHERE id = ?
         ''', (
             data['name'], data['type'], data['language'], data['framework'],
-            data['path'], data['git_remote'], project_id
+            data['path'], data['git_remote'], parent_id, project_id
         ))
         conn.commit()
         conn.close()
@@ -100,13 +123,15 @@ def edit_project(project_id):
         return redirect(url_for('db_browser.project_detail', project_id=project_id))
     
     project = conn.execute('SELECT * FROM projects WHERE id = ?', (project_id,)).fetchone()
+    # Get all top-level projects except self and subprojects
+    all_projects = conn.execute('SELECT id, name FROM projects WHERE parent_id IS NULL AND id != ? ORDER BY name', (project_id,)).fetchall()
     conn.close()
     
     if not project:
         flash('Project not found', 'error')
         return redirect(url_for('db_browser.projects'))
     
-    return render_template('db_browser/edit_project.html', project=project)
+    return render_template('db_browser/edit_project.html', project=project, parent_projects=all_projects)
 
 @db_browser.route('/db/sessions')
 def sessions():

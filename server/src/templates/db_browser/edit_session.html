@@ -1,0 +1,107 @@
+{% extends "db_browser/base.html" %}
+
+{% block title %}Edit Session{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="row align-items-center">
+        <div class="col">
+            <h1 class="h2 mb-2">⏱️ Edit Session</h1>
+            <p class="text-muted mb-0">Update session details and time tracking information</p>
+        </div>
+        <div class="col-auto">
+            <a href="{{ url_for('db_browser.session_detail', session_id=session.id) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Session
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="content-card">
+    <h3 class="mb-3">📝 Session Information</h3>
+    <form method="POST">
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="project_name" class="form-label">Project</label>
+                <input type="text" class="form-control" id="project_name" value="{{ session.project_name }}" readonly>
+                <div class="form-text">Project cannot be changed</div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="category" class="form-label">Category</label>
+                <select class="form-select" id="category" name="category" required>
+                    <option value="development" {% if session.category == 'development' %}selected{% endif %}>Development</option>
+                    <option value="debugging" {% if session.category == 'debugging' %}selected{% endif %}>Debugging</option>
+                    <option value="testing" {% if session.category == 'testing' %}selected{% endif %}>Testing</option>
+                    <option value="planning" {% if session.category == 'planning' %}selected{% endif %}>Planning</option>
+                    <option value="meeting" {% if session.category == 'meeting' %}selected{% endif %}>Meeting</option>
+                    <option value="research" {% if session.category == 'research' %}selected{% endif %}>Research</option>
+                    <option value="documentation" {% if session.category == 'documentation' %}selected{% endif %}>Documentation</option>
+                    <option value="other" {% if session.category == 'other' %}selected{% endif %}>Other</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="mb-3">
+            <label for="description" class="form-label">Description</label>
+            <textarea class="form-control" id="description" name="description" rows="3" required>{{ session.description }}</textarea>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="start_time" class="form-label">Start Time</label>
+                <input type="datetime-local" class="form-control" id="start_time" name="start_time" 
+                       value="{{ session.start_time.replace('T', ' ').split('.')[0] if session.start_time else '' }}" required>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="end_time" class="form-label">End Time</label>
+                <input type="datetime-local" class="form-control" id="end_time" name="end_time" 
+                       value="{{ session.end_time.replace('T', ' ').split('.')[0] if session.end_time else '' }}">
+                <div class="form-text">Leave empty if session is still active</div>
+            </div>
+        </div>
+        
+        <div class="d-flex justify-content-between">
+            <a href="{{ url_for('db_browser.session_detail', session_id=session.id) }}" class="btn btn-secondary">
+                Cancel
+            </a>
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check"></i> Save Changes
+            </button>
+        </div>
+    </form>
+</div>
+
+<div class="content-card">
+    <h3 class="mb-3">ℹ️ Session Details</h3>
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <div class="text-muted small">Session ID</div>
+                <div class="fw-bold">#{{ session.id }}</div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="mb-3">
+                <div class="text-muted small">Current Duration</div>
+                <div class="fw-bold">
+                    {% if session.duration_minutes %}
+                        {% set hours = session.duration_minutes // 60 %}
+                        {% set minutes = session.duration_minutes % 60 %}
+                        {% if hours > 0 %}
+                            {{ hours }}h {{ minutes }}m
+                        {% else %}
+                            {{ minutes }}m
+                        {% endif %}
+                    {% else %}
+                        {% if not session.end_time %}
+                            <span class="badge bg-warning">Active</span>
+                        {% else %}
+                            Not calculated
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

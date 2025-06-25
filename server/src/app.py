@@ -24,6 +24,9 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)
 
+# Set secret key for sessions (required for flash messages)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+
 # Database configuration
 DATABASE_PATH = os.environ.get('DATABASE_PATH', '/app/data/timetracker.db')
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DATABASE_PATH}'
