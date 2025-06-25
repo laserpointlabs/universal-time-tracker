@@ -1073,6 +1073,10 @@ def dashboard():
     """Serve interactive analytics dashboard"""
     return render_template('dashboard.html')
 
+@app.route('/')
+def landing_page():
+    return render_template('index.html', year=datetime.now().year)
+
 if __name__ == '__main__':
     # Ensure data directory exists
     os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
