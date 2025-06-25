@@ -87,6 +87,10 @@ Some endpoints (like the database browser and AI prompt management) interact wit
 - **Database Browser**: During tests, the `/db` endpoints use an in-memory SQLite database, patched via `conftest.py`.
 - **AI Prompt Endpoints**: During tests, the prompt file path is patched to a temporary file using the `PROMPT_FILE_PATH` environment variable, set by the test fixture.
 
+### CLI Testing
+
+The CLI tests use Click's `isolated_filesystem()` to ensure they run in a clean environment without existing `.timecfg` files. This prevents tests from accidentally using configuration files from the development environment.
+
 ### How It Works
 - `server/src/conftest.py` provides fixtures that patch these behaviors for tests.
 - No production code is changed for testing; all patching is done via fixtures and environment variables.
