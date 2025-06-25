@@ -22,9 +22,9 @@
 
 <div class="content-card">
     <h3 class="mb-3">📝 Session Information</h3>
-    <form method="POST">
+    <form method="POST" id="editSessionForm">
         <input type="hidden" name="project" value="{{ request.args.get('project', '') }}">
-        <input type="hidden" name="category" value="{{ request.args.get('category', '') }}">
+        <input type="hidden" name="filter_category" value="{{ request.args.get('category', '') }}">
         <input type="hidden" name="date_from" value="{{ request.args.get('date_from', '') }}">
         <input type="hidden" name="date_to" value="{{ request.args.get('date_to', '') }}">
         <div class="row">
@@ -47,12 +47,10 @@
                 </select>
             </div>
         </div>
-        
         <div class="mb-3">
             <label for="description" class="form-label">Description</label>
             <textarea class="form-control" id="description" name="description" rows="3" required>{{ session.description }}</textarea>
         </div>
-        
         <div class="row">
             <div class="col-md-6 mb-3">
                 <label for="start_time" class="form-label">Start Time</label>
@@ -66,73 +64,68 @@
                 <div class="form-text">Leave empty if session is still active</div>
             </div>
         </div>
-        
-        <div class="d-flex justify-content-between">
+        <!-- Breaks Section -->
+        <div class="content-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3>☕ Breaks ({{ breaks|length }})</h3>
+                <button type="button" class="btn btn-success btn-sm" onclick="addBreak()">
+                    <i class="bi bi-plus"></i> Add Break
+                </button>
+            </div>
+            <div id="breaksContainer">
+                {% for break in breaks %}
+                <div class="break-item card mb-3" data-break-id="{{ break.id }}">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">Break #{{ loop.index }}</h6>
+                        <button type="button" class="btn btn-danger btn-sm" onclick="removeBreak(this)">
+                            <i class="bi bi-trash"></i> Remove
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <input type="hidden" name="break_id[]" value="{{ break.id }}">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Break Type</label>
+                                <select class="form-select" name="break_type[]" required>
+                                    <option value="break" {% if break.break_type == 'break' %}selected{% endif %}>Break</option>
+                                    <option value="lunch" {% if break.break_type == 'lunch' %}selected{% endif %}>Lunch</option>
+                                    <option value="coffee" {% if break.break_type == 'coffee' %}selected{% endif %}>Coffee</option>
+                                    <option value="meeting" {% if break.break_type == 'meeting' %}selected{% endif %}>Meeting</option>
+                                    <option value="other" {% if break.break_type == 'other' %}selected{% endif %}>Other</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Start Time</label>
+                                <input type="datetime-local" class="form-control" name="break_start_time[]" 
+                                       value="{{ break.start_time.replace('T', ' ').split('.')[0] if break.start_time else '' }}" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">End Time</label>
+                                <input type="datetime-local" class="form-control" name="break_end_time[]" 
+                                       value="{{ break.end_time.replace('T', ' ').split('.')[0] if break.end_time else '' }}">
+                            </div>
+                        </div>
+                        {% if break.duration_minutes %}
+                        <div class="row">
+                            <div class="col-12">
+                                <small class="text-muted">
+                                    Duration: {{ break.duration_minutes }} minutes
+                                </small>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="d-flex justify-content-between mt-3">
             <a href="{{ url_for('db_browser.sessions', project=request.args.get('project'), category=request.args.get('category'), date_from=request.args.get('date_from'), date_to=request.args.get('date_to')) }}" class="btn btn-secondary">
                 Cancel
             </a>
             <button type="submit" class="btn btn-primary">
                 <i class="bi bi-check"></i> Save Changes
             </button>
-        </div>
-    </form>
-</div>
-
-<!-- Breaks Section -->
-<div class="content-card">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h3>☕ Breaks ({{ breaks|length }})</h3>
-        <button type="button" class="btn btn-success btn-sm" onclick="addBreak()">
-            <i class="bi bi-plus"></i> Add Break
-        </button>
-    </div>
-    
-    <form method="POST" id="breaksForm">
-        <div id="breaksContainer">
-            {% for break in breaks %}
-            <div class="break-item card mb-3" data-break-id="{{ break.id }}">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0">Break #{{ loop.index }}</h6>
-                    <button type="button" class="btn btn-danger btn-sm" onclick="removeBreak(this)">
-                        <i class="bi bi-trash"></i> Remove
-                    </button>
-                </div>
-                <div class="card-body">
-                    <input type="hidden" name="break_id[]" value="{{ break.id }}">
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Break Type</label>
-                            <select class="form-select" name="break_type[]" required>
-                                <option value="break" {% if break.break_type == 'break' %}selected{% endif %}>Break</option>
-                                <option value="lunch" {% if break.break_type == 'lunch' %}selected{% endif %}>Lunch</option>
-                                <option value="coffee" {% if break.break_type == 'coffee' %}selected{% endif %}>Coffee</option>
-                                <option value="meeting" {% if break.break_type == 'meeting' %}selected{% endif %}>Meeting</option>
-                                <option value="other" {% if break.break_type == 'other' %}selected{% endif %}>Other</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Start Time</label>
-                            <input type="datetime-local" class="form-control" name="break_start_time[]" 
-                                   value="{{ break.start_time.replace('T', ' ').split('.')[0] if break.start_time else '' }}" required>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">End Time</label>
-                            <input type="datetime-local" class="form-control" name="break_end_time[]" 
-                                   value="{{ break.end_time.replace('T', ' ').split('.')[0] if break.end_time else '' }}">
-                        </div>
-                    </div>
-                    {% if break.duration_minutes %}
-                    <div class="row">
-                        <div class="col-12">
-                            <small class="text-muted">
-                                Duration: {{ break.duration_minutes }} minutes
-                            </small>
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            {% endfor %}
         </div>
     </form>
 </div>
@@ -221,7 +214,7 @@ function removeBreak(button) {
 // Update the main form to include breaks when submitting
 document.querySelector('form').addEventListener('submit', function(e) {
     // Move all break inputs to the main form
-    const breaksForm = document.getElementById('breaksForm');
+    const breaksForm = document.getElementById('breaksContainer');
     const breakInputs = breaksForm.querySelectorAll('input, select');
     
     breakInputs.forEach(input => {

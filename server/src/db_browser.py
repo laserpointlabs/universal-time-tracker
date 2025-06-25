@@ -350,10 +350,14 @@ def edit_session(session_id):
         flash('Session and breaks updated successfully', 'success')
         # Preserve filters if present
         filters = {}
-        for key in ['project', 'category', 'date_from', 'date_to']:
+        for key in ['project', 'filter_category', 'date_from', 'date_to']:
             value = request.form.get(key)
             if value:
-                filters[key] = value
+                # Use 'category' as the filter param in the URL
+                if key == 'filter_category':
+                    filters['category'] = value
+                else:
+                    filters[key] = value
         return redirect(url_for('db_browser.session_detail', session_id=session_id, **filters))
     # GET request - show edit form
     session = conn.execute('''
