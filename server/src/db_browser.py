@@ -391,6 +391,19 @@ def edit_session(session_id):
     conn.close()
     return render_template('db_browser/edit_session.html', session=session, breaks=breaks)
 
+@db_browser.route('/db/sessions/<int:session_id>/delete', methods=['POST'])
+def delete_session(session_id):
+    """Delete a session and its breaks"""
+    conn = get_db_connection()
+    # Delete breaks first (if any)
+    conn.execute('DELETE FROM breaks WHERE session_id = ?', (session_id,))
+    # Delete the session
+    conn.execute('DELETE FROM sessions WHERE id = ?', (session_id,))
+    conn.commit()
+    conn.close()
+    flash('Session deleted successfully.', 'success')
+    return redirect(url_for('db_browser.sessions'))
+
 @db_browser.route('/db/export')
 def export_data():
     """Export database as JSON or CSV"""

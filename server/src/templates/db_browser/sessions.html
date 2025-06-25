@@ -163,6 +163,11 @@
                                class="btn btn-outline-secondary" title="Edit">
                                 <i class="bi bi-pencil"></i>
                             </a>
+                            <form method="POST" action="{{ url_for('db_browser.delete_session', session_id=session.id) }}" style="display:inline;">
+                                <button type="submit" class="btn btn-outline-danger" title="Delete" onclick="return confirm('Are you sure you want to delete this session? This action cannot be undone.');">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
                         </div>
                     </td>
                 </tr>
