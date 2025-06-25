@@ -52,6 +52,10 @@
                         <td><span class="badge bg-secondary">{{ session.category }}</span></td>
                     </tr>
                     <tr>
+                        <td><strong>User:</strong></td>
+                        <td>{{ session.userid }}</td>
+                    </tr>
+                    <tr>
                         <td><strong>Start Time:</strong></td>
                         <td>
                             {% if session.start_time %}

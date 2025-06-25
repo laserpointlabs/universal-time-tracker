@@ -94,6 +94,7 @@ def create_or_update_project():
         project.path = data.get('path', project.path)
         project.git_remote = data.get('git_remote', project.git_remote)
         project.last_activity = datetime.now()
+        project.userid = os.getlogin()
     else:
         # Create new project
         project = Project(
@@ -104,7 +105,8 @@ def create_or_update_project():
             path=data.get('path'),
             git_remote=data.get('git_remote'),
             created_at=datetime.now(),
-            last_activity=datetime.now()
+            last_activity=datetime.now(),
+            userid=os.getlogin()
         )
         db.session.add(project)
     
@@ -136,7 +138,8 @@ def start_session():
             name=project_name,
             type='development',
             created_at=datetime.now(),
-            last_activity=datetime.now()
+            last_activity=datetime.now(),
+            userid=os.getlogin()
         )
         db.session.add(project)
         db.session.flush()  # Get project.id
@@ -157,7 +160,8 @@ def start_session():
         project_id=project.id,
         start_time=datetime.now(),
         category=category,
-        description=description
+        description=description,
+        userid=os.getlogin()
     )
     
     db.session.add(session)
@@ -267,7 +271,8 @@ def toggle_break():
         new_break = Break(
             session_id=session.id,
             start_time=datetime.now(),
-            break_type=break_type
+            break_type=break_type,
+            userid=os.getlogin()
         )
         
         db.session.add(new_break)

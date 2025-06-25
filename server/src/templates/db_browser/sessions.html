@@ -75,6 +75,7 @@
                     <th>Project</th>
                     <th>Description</th>
                     <th>Category</th>
+                    <th>User</th>
                     <th>Start Time</th>
                     <th>End Time</th>
                     <th>Duration</th>
@@ -96,6 +97,9 @@
                     </td>
                     <td>
                         <span class="badge bg-secondary">{{ session.category }}</span>
+                    </td>
+                    <td>
+                        {{ session.userid }}
                     </td>
                     <td>
                         {% if session.start_time %}
