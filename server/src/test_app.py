@@ -3,16 +3,20 @@ import tempfile
 
 import pytest
 
-from app import app, db
+from app import create_app, db
 
 @pytest.fixture
 def client():
     """Create a test client for the Flask app"""
     # Use in-memory SQLite database for tests
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
-    app.config['TESTING'] = True
-    app.config['SECRET_KEY'] = 'test-secret-key'
-
+    test_config = {
+        'SQLALCHEMY_DATABASE_URI': 'sqlite:///:memory:',
+        'TESTING': True,
+        'SECRET_KEY': 'test-secret-key'
+    }
+    
+    app = create_app(test_config)
+    
     with app.test_client() as client:
         with app.app_context():
             # Create database tables directly
