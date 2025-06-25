@@ -180,6 +180,48 @@ def edit_project(project_id):
     
     return render_template('db_browser/edit_project.html', project=project, parent_projects=all_projects)
 
+@db_browser.route('/db/projects/<int:project_id>/delete', methods=['POST'])
+def delete_project(project_id):
+    """Delete a project and its sessions/breaks"""
+    conn = get_db_connection()
+    
+    # Check if project exists
+    project = conn.execute('SELECT * FROM projects WHERE id = ?', (project_id,)).fetchone()
+    if not project:
+        conn.close()
+        flash('Project not found', 'error')
+        return redirect(url_for('db_browser.projects'))
+    
+    # Get all session IDs for this project (including subprojects)
+    session_ids = conn.execute('''
+        SELECT s.id FROM sessions s
+        JOIN projects p ON s.project_id = p.id
+        WHERE p.id = ? OR p.parent_id = ?
+    ''', (project_id, project_id)).fetchall()
+    
+    session_ids = [s[0] for s in session_ids]
+    
+    # Delete breaks for all sessions
+    if session_ids:
+        placeholders = ','.join('?' * len(session_ids))
+        conn.execute(f'DELETE FROM breaks WHERE session_id IN ({placeholders})', session_ids)
+    
+    # Delete sessions for this project and its subprojects
+    conn.execute('DELETE FROM sessions WHERE project_id IN (SELECT id FROM projects WHERE id = ? OR parent_id = ?)', 
+                 (project_id, project_id))
+    
+    # Delete subprojects first (to maintain referential integrity)
+    conn.execute('DELETE FROM projects WHERE parent_id = ?', (project_id,))
+    
+    # Delete the main project
+    conn.execute('DELETE FROM projects WHERE id = ?', (project_id,))
+    
+    conn.commit()
+    conn.close()
+    
+    flash('Project and all associated data deleted successfully.', 'success')
+    return redirect(url_for('db_browser.projects'))
+
 @db_browser.route('/db/sessions')
 def sessions():
     """View all sessions"""

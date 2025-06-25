@@ -91,6 +91,10 @@
                                class="btn btn-outline-secondary" title="Edit">
                                 <i class="bi bi-pencil"></i>
                             </a>
+                            <button type="button" class="btn btn-outline-danger" title="Delete Project"
+                                    onclick="confirmDeleteProject({{ project.id }}, '{{ project.name }}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
                         </div>
                     </td>
                 </tr>
@@ -155,6 +159,10 @@
                                class="btn btn-outline-secondary btn-sm" title="Edit">
                                 <i class="bi bi-pencil"></i>
                             </a>
+                            <button type="button" class="btn btn-outline-danger btn-sm" title="Delete Project"
+                                    onclick="confirmDeleteProject({{ subproject.id }}, '{{ subproject.name }}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
                         </div>
                     </td>
                 </tr>
@@ -171,4 +179,17 @@
     </div>
     {% endif %}
 </div>
+
+<script>
+function confirmDeleteProject(projectId, projectName) {
+    if (confirm(`Are you sure you want to delete the project "${projectName}"? This will also delete all associated sessions and breaks. This action cannot be undone.`)) {
+        // Create a form and submit it
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/db/projects/${projectId}/delete`;
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
 {% endblock %} 
