@@ -17,7 +17,8 @@ A powerful, intelligent time tracking system for software projects with advanced
 - **📊 Category Breakdown** - Understand how you spend your time with trends
 - **📈 Productivity Patterns** - Discover your most productive hours and days  
 - **⏱️ Session Analysis** - Get insights on session lengths and break patterns
-- **💡 Smart Recommendations** - Personalized productivity suggestions
+- **🤖 AI-Powered Recommendations** - Personalized productivity suggestions with customizable prompts
+- **✏️ Prompt Editor** - Customize AI recommendations to match your specific needs and goals
 
 ### Database Management
 - **🌐 Web-based Database Browser** - Easy review and edit of all time tracking data
@@ -127,6 +128,36 @@ GitHub-style visualization showing:
 - Focus time analysis
 - Workflow recommendations
 
+### 🤖 AI-Powered Recommendations
+The system provides intelligent, personalized recommendations based on your time tracking data:
+
+- **Customizable Prompts**: Edit the AI prompt template to focus on specific aspects of productivity
+- **Rich Data Context**: AI receives comprehensive analytics including:
+  - Work patterns and consistency scores
+  - Session length distributions
+  - Break-to-work ratios
+  - Category breakdowns
+  - Weekly and hourly productivity patterns
+- **Actionable Insights**: Get specific, tailored recommendations for:
+  - Optimizing work schedules
+  - Improving focus and productivity
+  - Balancing work and breaks
+  - Long-term habit formation
+
+#### Customizing AI Recommendations
+Access the prompt editor at http://localhost:9000/prompt-editor to:
+- Modify the AI prompt template
+- Add custom variables and metrics
+- Test prompts with sample data
+- Reset to default recommendations
+- Save personalized prompts for your workflow
+
+The prompt editor provides a comprehensive interface with:
+- Syntax highlighting for variables
+- Real-time preview mode
+- Variable reference guide
+- Test functionality with sample data
+
 ## 🚀 Quick Commands
 
 ```bash
@@ -147,6 +178,9 @@ GitHub-style visualization showing:
 
 # View analytics dashboard
 open http://localhost:9000/dashboard       # Interactive analytics
+
+# Customize AI recommendations
+open http://localhost:9000/prompt-editor   # Edit AI prompt template
 ```
 
 ## ⚙️ Configuration

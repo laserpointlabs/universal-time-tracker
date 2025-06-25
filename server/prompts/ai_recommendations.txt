@@ -1,0 +1,39 @@
+You are a productivity expert analyzing time tracking data for a software developer. 
+Provide 5-7 specific, actionable recommendations based on this data:
+
+PROJECT: {project}
+ANALYSIS PERIOD: {days} days
+
+KEY METRICS:
+- Total Hours: {total_hours:.1f} hours
+- Total Sessions: {total_sessions}
+- Average Daily Hours: {avg_daily_hours:.1f}
+- Average Session Length: {avg_session_length:.1f} hours
+- Work Days: {work_days} out of {days}
+- Consistency Score: {consistency_score:.1%}
+
+TIME DISTRIBUTION:
+{category_breakdown}
+
+PRODUCTIVITY PATTERNS:
+- Most Productive Hour: {most_productive_hour}:00
+- Total Break Time: {total_break_minutes:.0f} minutes
+- Break-to-Work Ratio: {break_ratio:.1f}%
+
+SESSION ANALYSIS:
+- Short sessions (<30 min): {short_sessions}
+- Medium sessions (30 min - 3 hours): {medium_sessions}
+- Long sessions (>3 hours): {long_sessions}
+
+DAILY PATTERNS:
+{weekly_patterns}
+
+Provide recommendations that are:
+1. Specific and actionable
+2. Based on the data patterns shown
+3. Focused on productivity, work-life balance, and sustainable work habits
+4. Tailored to software development work
+5. Include both immediate improvements and long-term strategies
+6. Consider the developer's specific work patterns and goals
+
+Format as a JSON array of recommendation strings, each recommendation should be concise but specific. 

@@ -11,6 +11,8 @@ services:
       - ./data:/app/data
       # Development: Mount source code for instant changes
       - ./server/src:/app/src
+      # Mount prompts directory for AI customization
+      - ./server/prompts:/app/prompts
     environment:
       - PORT=9000
       - DEBUG=true

@@ -970,34 +970,42 @@ def get_ai_recommendations():
             'consistency_score': len([h for h in daily_hours if 2 <= h <= 8]) / len(daily_hours) if daily_hours else 0
         }
         
-        # Prepare data for OpenAI analysis
-        analysis_prompt = f"""
-You are a productivity expert analyzing time tracking data for a software developer. 
+        # Load custom prompt or use default
+        prompt_file_path = '/app/prompts/ai_recommendations.txt'
+        try:
+            with open(prompt_file_path, 'r', encoding='utf-8') as f:
+                prompt_template = f.read()
+        except FileNotFoundError:
+            # Use default prompt if file doesn't exist
+            prompt_template = """You are a productivity expert analyzing time tracking data for a software developer. 
 Provide 5-7 specific, actionable recommendations based on this data:
 
 PROJECT: {project}
 ANALYSIS PERIOD: {days} days
 
 KEY METRICS:
-- Total Hours: {analytics_data['total_hours']:.1f} hours
-- Total Sessions: {analytics_data['total_sessions']}
-- Average Daily Hours: {analytics_data['productivity_metrics']['avg_daily_hours']:.1f}
-- Average Session Length: {analytics_data['productivity_metrics']['avg_session_length']:.1f} hours
-- Work Days: {analytics_data['productivity_metrics']['work_days']} out of {days}
-- Consistency Score: {analytics_data['productivity_metrics']['consistency_score']:.1%}
+- Total Hours: {total_hours:.1f} hours
+- Total Sessions: {total_sessions}
+- Average Daily Hours: {avg_daily_hours:.1f}
+- Average Session Length: {avg_session_length:.1f} hours
+- Work Days: {work_days} out of {days}
+- Consistency Score: {consistency_score:.1%}
 
 TIME DISTRIBUTION:
-{chr(10).join([f"- {cat}: {hours:.1f} hours" for cat, hours in analytics_data['category_breakdown'].items()])}
+{category_breakdown}
 
 PRODUCTIVITY PATTERNS:
-- Most Productive Hour: {analytics_data['productivity_metrics']['most_productive_hour']}:00
-- Total Break Time: {analytics_data['productivity_metrics']['total_break_minutes']:.0f} minutes
-- Break-to-Work Ratio: {(analytics_data['productivity_metrics']['total_break_minutes'] / (analytics_data['total_hours'] * 60) * 100):.1f}%
+- Most Productive Hour: {most_productive_hour}:00
+- Total Break Time: {total_break_minutes:.0f} minutes
+- Break-to-Work Ratio: {break_ratio:.1f}%
 
 SESSION ANALYSIS:
-- Short sessions (<30 min): {len([s for s in analytics_data['session_lengths'] if s < 0.5])}
-- Medium sessions (30 min - 3 hours): {len([s for s in analytics_data['session_lengths'] if 0.5 <= s <= 3])}
-- Long sessions (>3 hours): {len([s for s in analytics_data['session_lengths'] if s > 3])}
+- Short sessions (<30 min): {short_sessions}
+- Medium sessions (30 min - 3 hours): {medium_sessions}
+- Long sessions (>3 hours): {long_sessions}
+
+DAILY PATTERNS:
+{weekly_patterns}
 
 Provide recommendations that are:
 1. Specific and actionable
@@ -1005,9 +1013,45 @@ Provide recommendations that are:
 3. Focused on productivity, work-life balance, and sustainable work habits
 4. Tailored to software development work
 5. Include both immediate improvements and long-term strategies
+6. Consider the developer's specific work patterns and goals
 
-Format as a JSON array of recommendation strings.
-"""
+Format as a JSON array of recommendation strings, each recommendation should be concise but specific."""
+
+        # Prepare data for prompt template
+        short_sessions = len([s for s in analytics_data['session_lengths'] if s < 0.5])
+        medium_sessions = len([s for s in analytics_data['session_lengths'] if 0.5 <= s <= 3])
+        long_sessions = len([s for s in analytics_data['session_lengths'] if s > 3])
+        break_ratio = (analytics_data['productivity_metrics']['total_break_minutes'] / (analytics_data['total_hours'] * 60) * 100) if analytics_data['total_hours'] > 0 else 0
+        
+        # Weekly patterns
+        weekday_data = defaultdict(float)
+        for session in sessions:
+            weekday = session.start_time.strftime('%A')
+            duration_hours = (session.end_time - session.start_time).total_seconds() / 3600
+            weekday_data[weekday] += duration_hours
+        
+        weekly_patterns = '\n'.join([f"- {day}: {hours:.1f} hours" for day, hours in weekday_data.items()])
+        category_breakdown = '\n'.join([f"- {cat}: {hours:.1f} hours" for cat, hours in analytics_data['category_breakdown'].items()])
+        
+        # Format the prompt with actual data
+        analysis_prompt = prompt_template.format(
+            project=project,
+            days=days,
+            total_hours=analytics_data['total_hours'],
+            total_sessions=analytics_data['total_sessions'],
+            avg_daily_hours=analytics_data['productivity_metrics']['avg_daily_hours'],
+            avg_session_length=analytics_data['productivity_metrics']['avg_session_length'],
+            work_days=analytics_data['productivity_metrics']['work_days'],
+            consistency_score=analytics_data['productivity_metrics']['consistency_score'],
+            category_breakdown=category_breakdown,
+            most_productive_hour=analytics_data['productivity_metrics']['most_productive_hour'],
+            total_break_minutes=analytics_data['productivity_metrics']['total_break_minutes'],
+            break_ratio=break_ratio,
+            short_sessions=short_sessions,
+            medium_sessions=medium_sessions,
+            long_sessions=long_sessions,
+            weekly_patterns=weekly_patterns
+        )
 
         # Call OpenAI API
         client = OpenAI(api_key=openai_api_key)
@@ -1070,6 +1114,141 @@ Format as a JSON array of recommendation strings.
                 "Track your time consistently to get better insights"
             ]
         }), 500
+
+# Prompt Management Endpoints
+@app.route('/api/v1/prompts/ai-recommendations', methods=['GET'])
+def get_ai_prompt():
+    """Get the current AI recommendations prompt"""
+    try:
+        # Use container path for Docker environment
+        prompt_file_path = '/app/prompts/ai_recommendations.txt'
+        with open(prompt_file_path, 'r', encoding='utf-8') as f:
+            prompt = f.read()
+        return jsonify({'prompt': prompt})
+    except FileNotFoundError:
+        return jsonify({'error': 'Prompt file not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/v1/prompts/ai-recommendations', methods=['POST'])
+def update_ai_prompt():
+    """Update the AI recommendations prompt"""
+    try:
+        data = request.get_json()
+        if not data or 'prompt' not in data:
+            return jsonify({'error': 'Prompt content required'}), 400
+        
+        prompt_file_path = '/app/prompts/ai_recommendations.txt'
+        
+        # Ensure prompts directory exists
+        os.makedirs(os.path.dirname(prompt_file_path), exist_ok=True)
+        
+        with open(prompt_file_path, 'w', encoding='utf-8') as f:
+            f.write(data['prompt'])
+        
+        return jsonify({'message': 'Prompt updated successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/v1/prompts/ai-recommendations/reset', methods=['POST'])
+def reset_ai_prompt():
+    """Reset the AI recommendations prompt to default"""
+    try:
+        default_prompt = """You are a productivity expert analyzing time tracking data for a software developer. 
+Provide 5-7 specific, actionable recommendations based on this data:
+
+PROJECT: {project}
+ANALYSIS PERIOD: {days} days
+
+KEY METRICS:
+- Total Hours: {total_hours:.1f} hours
+- Total Sessions: {total_sessions}
+- Average Daily Hours: {avg_daily_hours:.1f}
+- Average Session Length: {avg_session_length:.1f} hours
+- Work Days: {work_days} out of {days}
+- Consistency Score: {consistency_score:.1%}
+
+TIME DISTRIBUTION:
+{category_breakdown}
+
+PRODUCTIVITY PATTERNS:
+- Most Productive Hour: {most_productive_hour}:00
+- Total Break Time: {total_break_minutes:.0f} minutes
+- Break-to-Work Ratio: {break_ratio:.1f}%
+
+SESSION ANALYSIS:
+- Short sessions (<30 min): {short_sessions}
+- Medium sessions (30 min - 3 hours): {medium_sessions}
+- Long sessions (>3 hours): {long_sessions}
+
+DAILY PATTERNS:
+{weekly_patterns}
+
+Provide recommendations that are:
+1. Specific and actionable
+2. Based on the data patterns shown
+3. Focused on productivity, work-life balance, and sustainable work habits
+4. Tailored to software development work
+5. Include both immediate improvements and long-term strategies
+6. Consider the developer's specific work patterns and goals
+
+Format as a JSON array of recommendation strings, each recommendation should be concise but specific."""
+        
+        prompt_file_path = '/app/prompts/ai_recommendations.txt'
+        
+        # Ensure prompts directory exists
+        os.makedirs(os.path.dirname(prompt_file_path), exist_ok=True)
+        
+        with open(prompt_file_path, 'w', encoding='utf-8') as f:
+            f.write(default_prompt)
+        
+        return jsonify({'message': 'Prompt reset to default'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/v1/prompts/ai-recommendations/test', methods=['POST'])
+def test_ai_prompt():
+    """Test the AI recommendations prompt with sample data"""
+    try:
+        data = request.get_json()
+        if not data or 'prompt' not in data:
+            return jsonify({'error': 'Prompt content required'}), 400
+        
+        # Sample data for testing
+        sample_data = {
+            'project': 'Sample Project',
+            'days': 30,
+            'total_hours': 120.5,
+            'total_sessions': 45,
+            'avg_daily_hours': 4.0,
+            'avg_session_length': 2.7,
+            'work_days': 25,
+            'consistency_score': 0.83,
+            'category_breakdown': '- Development: 85.2 hours\n- Testing: 20.1 hours\n- Planning: 15.2 hours',
+            'most_productive_hour': 10,
+            'total_break_minutes': 180,
+            'break_ratio': 2.5,
+            'short_sessions': 8,
+            'medium_sessions': 25,
+            'long_sessions': 12,
+            'weekly_patterns': '- Monday: 6.2 hours\n- Tuesday: 5.8 hours\n- Wednesday: 7.1 hours\n- Thursday: 6.5 hours\n- Friday: 4.9 hours'
+        }
+        
+        # Format the prompt with sample data
+        formatted_prompt = data['prompt'].format(**sample_data)
+        
+        return jsonify({
+            'message': 'Prompt test completed',
+            'formatted_prompt': formatted_prompt,
+            'sample_data': sample_data
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/prompt-editor')
+def prompt_editor():
+    """Serve the AI prompt editor page"""
+    return render_template('prompt_editor.html')
 
 @app.route('/dashboard')
 def dashboard():
