@@ -1,9 +1,28 @@
 # Release Notes - Universal Time Tracker v0.2.0
 
-**Release Date:** January 27, 2025  
+**Release Date:** June 25, 2025  
 **Version:** 0.2.0
 
 ## 🌟 What's New
+
+### Web Interface and Dashboard
+- **Modern Web UI**: Complete Bootstrap 5-based interface at `http://localhost:9000/`
+- **Project Management Dashboard**: Visual overview of all projects with statistics
+- **Real-time Session Monitoring**: Live tracking of active sessions with elapsed time
+- **Interactive Charts**: Daily activity patterns and category breakdowns using Chart.js
+- **Responsive Design**: Works on desktop, tablet, and mobile devices
+
+### API Documentation  
+- **Swagger/OpenAPI Docs**: Interactive API documentation at `/docs/` endpoint
+- **Organized Endpoints**: APIs grouped into logical namespaces (projects, sessions, analytics, config)
+- **Request/Response Models**: Complete schema documentation with examples
+- **Try It Out**: Test API endpoints directly from the documentation interface
+
+### Enhanced Project Management
+- **Web-based CRUD**: Create, read, update, and delete projects through web interface
+- **Project Dashboards**: Individual project pages with detailed analytics and session history
+- **Configuration Download**: Generate and download `.timecfg` files from project pages
+- **Quick Actions**: Start/stop tracking sessions with one-click buttons
 
 ### Historical Session Creation
 - **CLI Command**: New `tt create` command for creating sessions with custom start/end times
@@ -11,13 +30,99 @@
 - **Flexible Time Formats**: Support for duration strings (e.g., "2h 30m") and specific timestamps
 - **Category Support**: Assign categories to historical sessions during creation
 
-### Enhanced Analytics Dashboard
-- **Daily Variation Box Plots**: Statistical visualization showing productivity variation across weekdays
-- **Interactive Charts**: Rich tooltips with detailed statistical information (min, Q1, median, Q3, max)
-- **Weekly Patterns Enhancement**: Box plot overlays on existing line charts for deeper insights
-- **Statistical Analysis**: Better understanding of daily productivity patterns and variations
+### Enhanced Analytics
+- **Daily Activity Charts**: Line charts showing work patterns over the last 7 days
+- **Category Breakdowns**: Pie charts showing time distribution across work categories  
+- **Statistical Insights**: Box plots overlaying daily variation patterns
+- **Time Period Filtering**: View analytics for different time ranges (day, week, month, quarter, year)
+- **Real-time Updates**: Dashboard automatically refreshes every 30 seconds
 
-### Session Management Improvements
+## 🐛 Bug Fixes
+
+### CLI Tool Improvements
+- **Virtual Environment Support**: Fixed `--user` pip install flag causing errors in virtual environments
+- **Automatic Detection**: CLI now detects virtual environments and uses appropriate pip commands
+- **Better Error Messages**: Improved guidance when package installation fails
+- **Dependency Management**: Streamlined installation of required packages (click, requests, pyyaml)
+
+### Docker and Environment
+- **User ID Detection**: Fixed "unknown" user display in Docker containers
+- **Database Path Resolution**: Improved SQLite database path handling for different environments
+- **Template Serving**: Fixed Flask template and static file serving in containerized environments
+- **Environment Variables**: Better support for `TIME_TRACKER_USER_ID` in Docker
+
+### API and Backend
+- **Session Duration Calculations**: Improved accuracy of time calculations and timezone handling
+- **Error Response Handling**: Better validation and error messages across all endpoints
+- **Database Relationships**: Enhanced model relationships and data serialization
+- **Health Check Improvements**: More reliable health check endpoints for monitoring
+
+## 📋 Migration Guide
+
+### From v0.1.0 to v0.2.0
+
+#### For Existing Users
+- **No Data Loss**: All existing projects and sessions remain fully compatible
+- **CLI Compatibility**: All existing CLI commands continue to work unchanged
+- **New Web Access**: Simply navigate to `http://localhost:9000/` to access the new web interface
+
+#### For Docker Users
+- **Updated Container**: Pull the latest image for web interface support
+- **Same Volume Mounts**: No changes needed to existing Docker Compose configurations
+- **New Port Access**: Web interface available on port 9000 (same as API)
+
+#### For API Consumers
+- **Backward Compatible**: All existing API endpoints remain unchanged
+- **New Endpoints**: Additional REST endpoints available for enhanced functionality
+- **Enhanced Documentation**: Complete API documentation now available at `/docs/`
+
+## 🚀 Getting Started with New Features
+
+### Accessing the Web Interface
+1. Start the server: `docker-compose up` or `cd server && python src/app.py`
+2. Open browser to: `http://localhost:9000/`
+3. Create projects and start tracking time visually
+
+### Using the API Documentation
+1. Navigate to: `http://localhost:9000/docs/`
+2. Explore available endpoints and models
+3. Test API calls directly from the interface
+
+### Creating Historical Sessions
+```bash
+# Create a 2.5 hour session for yesterday
+tt create "2h 30m" --description "Bug fixes" --category "development"
+
+# Create session with specific times
+tt create --start "2025-06-24 09:00" --end "2025-06-24 11:30" --description "Meeting"
+```
+
+### Downloading Project Configuration
+1. Visit project page: `http://localhost:9000/project/YourProjectName`
+2. Click "Download .timecfg" to get configuration file
+3. Place file in your project directory for CLI integration
+
+## 🔧 Technical Details
+
+### New Dependencies
+- `flask-restx==1.3.0` - Swagger/OpenAPI documentation
+- `marshmallow==3.21.0` - Enhanced data serialization
+
+### New Endpoints
+- `GET /` - Web dashboard
+- `GET /project/{name}` - Project-specific dashboard  
+- `GET /docs/` - Swagger API documentation
+- `GET /api/v1/config/timecfg/{project}` - Project configuration
+- Enhanced CRUD operations for all resources
+
+## 🎯 What's Coming Next
+
+Version 0.3.0 will focus on:
+- Advanced reporting and export capabilities
+- Team collaboration features
+- Integration with popular development tools (Git, VS Code, etc.)
+- Mobile app development
+- Advanced analytics and productivity insights
 - **Summary Statistics**: Comprehensive overview showing total sessions, active sessions, and total time
 - **Filtered Data Insights**: Summary statistics for both filtered and unfiltered session data
 - **Enhanced Filtering**: Better session filtering with detailed statistical breakdowns
