@@ -68,8 +68,8 @@ def init_database():
         logger.info("Database tables created/verified")
 
 # Only create tables if we're not in testing mode
-if not app.config.get('TESTING', False):
-    init_database()
+# if not app.config.get('TESTING', False):
+#     init_database()
 
 @app.route('/health', methods=['GET'])
 def health_check():
