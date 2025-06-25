@@ -78,6 +78,32 @@ python db_manager.py sessions --limit 10      # Show recent sessions
 python db_manager.py search --query "bug fix" # Search for sessions
 ```
 
+## 🧪 Testing & CI Patterns
+
+### Test-Friendly Endpoints
+
+Some endpoints (like the database browser and AI prompt management) interact with files or databases that may not exist in CI or test environments. To ensure robust, portable tests:
+
+- **Database Browser**: During tests, the `/db` endpoints use an in-memory SQLite database, patched via `conftest.py`.
+- **AI Prompt Endpoints**: During tests, the prompt file path is patched to a temporary file using the `PROMPT_FILE_PATH` environment variable, set by the test fixture.
+
+### How It Works
+- `server/src/conftest.py` provides fixtures that patch these behaviors for tests.
+- No production code is changed for testing; all patching is done via fixtures and environment variables.
+- This allows the test suite to run in any environment (local, CI, Docker) without file or permission errors.
+
+### Adding New Test-Friendly Endpoints
+- If you add endpoints that interact with files or external resources, consider using a similar pattern:
+  - Use environment variables to override file paths in tests.
+  - Patch resource access in `conftest.py` as needed.
+
+### Running Tests
+```bash
+cd server/src
+pytest -v
+```
+All tests should pass locally and in CI.
+
 ## 🏗️ Architecture
 
 - **Flask Server** - RESTful API with SQLite database (port 9000)

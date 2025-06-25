@@ -8,6 +8,8 @@ on:
 
 jobs:
   test:
+    # Test-friendly patching: DB browser and prompt endpoints are patched for CI using fixtures in conftest.py.
+    # See README.md 'Testing & CI Patterns' for details.
     runs-on: ubuntu-latest
 
     steps:

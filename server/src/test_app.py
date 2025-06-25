@@ -43,7 +43,7 @@ def test_dashboard_page(client):
     response = client.get('/dashboard')
     assert response.status_code == 200
 
-def test_db_browser_index(client):
+def test_db_browser_index(client, patch_db_browser):
     """Test the database browser index page loads"""
     response = client.get('/db')
     assert response.status_code == 200
@@ -145,7 +145,7 @@ def test_prompt_editor_page(client):
     response = client.get('/prompt-editor')
     assert response.status_code == 200
 
-def test_api_ai_prompt_get(client):
+def test_api_ai_prompt_get(client, patch_prompt_file):
     """Test getting the AI prompt"""
     response = client.get('/api/v1/prompts/ai-recommendations')
     assert response.status_code == 200

@@ -1013,7 +1013,7 @@ def create_app(config=None):
             }
             
             # Load custom prompt or use default
-            prompt_file_path = '/app/prompts/ai_recommendations.txt'
+            prompt_file_path = os.environ.get('PROMPT_FILE_PATH', '/app/prompts/ai_recommendations.txt')
             try:
                 with open(prompt_file_path, 'r', encoding='utf-8') as f:
                     prompt_template = f.read()
@@ -1162,8 +1162,8 @@ Format as a JSON array of recommendation strings, each recommendation should be 
     def get_ai_prompt():
         """Get the current AI recommendations prompt"""
         try:
-            # Use container path for Docker environment
-            prompt_file_path = '/app/prompts/ai_recommendations.txt'
+            # Use env var for test, fallback to container path
+            prompt_file_path = os.environ.get('PROMPT_FILE_PATH', '/app/prompts/ai_recommendations.txt')
             with open(prompt_file_path, 'r', encoding='utf-8') as f:
                 prompt = f.read()
             return jsonify({'prompt': prompt})
@@ -1180,14 +1180,11 @@ Format as a JSON array of recommendation strings, each recommendation should be 
             if not data or 'prompt' not in data:
                 return jsonify({'error': 'Prompt content required'}), 400
             
-            prompt_file_path = '/app/prompts/ai_recommendations.txt'
-            
+            prompt_file_path = os.environ.get('PROMPT_FILE_PATH', '/app/prompts/ai_recommendations.txt')
             # Ensure prompts directory exists
             os.makedirs(os.path.dirname(prompt_file_path), exist_ok=True)
-            
             with open(prompt_file_path, 'w', encoding='utf-8') as f:
                 f.write(data['prompt'])
-            
             return jsonify({'message': 'Prompt updated successfully'})
         except Exception as e:
             return jsonify({'error': str(e)}), 500
@@ -1196,54 +1193,13 @@ Format as a JSON array of recommendation strings, each recommendation should be 
     def reset_ai_prompt():
         """Reset the AI recommendations prompt to default"""
         try:
-            default_prompt = """You are a productivity expert analyzing time tracking data for a software developer. 
-Provide 5-7 specific, actionable recommendations based on this data:
-
-PROJECT: {project}
-ANALYSIS PERIOD: {days} days
-
-KEY METRICS:
-- Total Hours: {total_hours:.1f} hours
-- Total Sessions: {total_sessions}
-- Average Daily Hours: {avg_daily_hours:.1f}
-- Average Session Length: {avg_session_length:.1f} hours
-- Work Days: {work_days} out of {days}
-- Consistency Score: {consistency_score:.1%}
-
-TIME DISTRIBUTION:
-{category_breakdown}
-
-PRODUCTIVITY PATTERNS:
-- Most Productive Hour: {most_productive_hour}:00
-- Total Break Time: {total_break_minutes:.0f} minutes
-- Break-to-Work Ratio: {break_ratio:.1f}%
-
-SESSION ANALYSIS:
-- Short sessions (<30 min): {short_sessions}
-- Medium sessions (30 min - 3 hours): {medium_sessions}
-- Long sessions (>3 hours): {long_sessions}
-
-DAILY PATTERNS:
-{weekly_patterns}
-
-Provide recommendations that are:
-1. Specific and actionable
-2. Based on the data patterns shown
-3. Focused on productivity, work-life balance, and sustainable work habits
-4. Tailored to software development work
-5. Include both immediate improvements and long-term strategies
-6. Consider the developer's specific work patterns and goals
-
-Format as a JSON array of recommendation strings, each recommendation should be concise but specific."""
-            
-            prompt_file_path = '/app/prompts/ai_recommendations.txt'
-            
+            default_prompt = """You are a productivity expert analyzing time tracking data for a software developer. \
+Provide 5-7 specific, actionable recommendations based on this data:\n\nPROJECT: {project}\nANALYSIS PERIOD: {days} days\n\nKEY METRICS:\n- Total Hours: {total_hours:.1f} hours\n- Total Sessions: {total_sessions}\n- Average Daily Hours: {avg_daily_hours:.1f}\n- Average Session Length: {avg_session_length:.1f} hours\n- Work Days: {work_days} out of {days}\n- Consistency Score: {consistency_score:.1%}\n\nTIME DISTRIBUTION:\n{category_breakdown}\n\nPRODUCTIVITY PATTERNS:\n- Most Productive Hour: {most_productive_hour}:00\n- Total Break Time: {total_break_minutes:.0f} minutes\n- Break-to-Work Ratio: {break_ratio:.1f}%\n\nSESSION ANALYSIS:\n- Short sessions (<30 min): {short_sessions}\n- Medium sessions (30 min - 3 hours): {medium_sessions}\n- Long sessions (>3 hours): {long_sessions}\n\nDAILY PATTERNS:\n{weekly_patterns}\n\nProvide recommendations that are:\n1. Specific and actionable\n2. Based on the data patterns shown\n3. Focused on productivity, work-life balance, and sustainable work habits\n4. Tailored to software development work\n5. Include both immediate improvements and long-term strategies\n6. Consider the developer's specific work patterns and goals\n\nFormat as a JSON array of recommendation strings, each recommendation should be concise but specific."""
+            prompt_file_path = os.environ.get('PROMPT_FILE_PATH', '/app/prompts/ai_recommendations.txt')
             # Ensure prompts directory exists
             os.makedirs(os.path.dirname(prompt_file_path), exist_ok=True)
-            
             with open(prompt_file_path, 'w', encoding='utf-8') as f:
                 f.write(default_prompt)
-            
             return jsonify({'message': 'Prompt reset to default'})
         except Exception as e:
             return jsonify({'error': str(e)}), 500
