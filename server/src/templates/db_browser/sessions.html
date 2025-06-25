@@ -84,7 +84,7 @@
             </thead>
             <tbody>
                 {% for session in sessions %}
-                <tr>
+                <tr {% if session.is_active %}class="table-warning"{% endif %}>
                     <td>{{ session.id }}</td>
                     <td>
                         <strong>{{ session.project_name }}</strong>
@@ -116,20 +116,34 @@
                                 <br><small class="text-muted">{{ date_parts[1][:5] }}</small>
                             {% endif %}
                         {% else %}
-                            <span class="badge bg-warning">Active</span>
+                            <span class="badge bg-warning">
+                                <i class="bi bi-play-circle-fill"></i> Active
+                            </span>
                         {% endif %}
                     </td>
                     <td>
-                        {% if session.duration_minutes %}
-                            {% set hours = session.duration_minutes // 60 %}
-                            {% set minutes = session.duration_minutes % 60 %}
-                            {% if hours > 0 %}
-                                {{ hours }}h {{ minutes }}m
-                            {% else %}
-                                {{ minutes }}m
-                            {% endif %}
+                        {% if session.is_active %}
+                            <span class="duration-display" data-start-timestamp="{{ session.start_timestamp }}">
+                                {% set hours = session.current_duration_minutes // 60 %}
+                                {% set minutes = session.current_duration_minutes % 60 %}
+                                {% if hours > 0 %}
+                                    <strong class="text-warning">{{ hours }}h {{ minutes }}m</strong>
+                                {% else %}
+                                    <strong class="text-warning">{{ minutes }}m</strong>
+                                {% endif %}
+                            </span>
                         {% else %}
-                            -
+                            {% if session.duration_minutes %}
+                                {% set hours = session.duration_minutes // 60 %}
+                                {% set minutes = session.duration_minutes % 60 %}
+                                {% if hours > 0 %}
+                                    {{ hours }}h {{ minutes }}m
+                                {% else %}
+                                    {{ minutes }}m
+                                {% endif %}
+                            {% else %}
+                                -
+                            {% endif %}
                         {% endif %}
                     </td>
                     <td>
@@ -164,4 +178,36 @@
     </div>
     {% endif %}
 </div>
+
+<script>
+// Real-time duration updates for active sessions
+function updateActiveDurations() {
+    const now = Date.now() / 1000; // Current time in seconds
+    const durationDisplays = document.querySelectorAll('.duration-display');
+    
+    durationDisplays.forEach(display => {
+        const startTimestamp = parseFloat(display.dataset.startTimestamp);
+        const durationSeconds = Math.floor(now - startTimestamp);
+        const durationMinutes = Math.floor(durationSeconds / 60);
+        
+        const hours = Math.floor(durationMinutes / 60);
+        const minutes = durationMinutes % 60;
+        
+        let durationText;
+        if (hours > 0) {
+            durationText = `<strong class="text-warning">${hours}h ${minutes}m</strong>`;
+        } else {
+            durationText = `<strong class="text-warning">${minutes}m</strong>`;
+        }
+        
+        display.innerHTML = durationText;
+    });
+}
+
+// Update durations every second
+setInterval(updateActiveDurations, 1000);
+
+// Initial update
+updateActiveDurations();
+</script>
 {% endblock %} 

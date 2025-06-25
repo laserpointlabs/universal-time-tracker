@@ -43,18 +43,65 @@ def projects():
     """View all projects"""
     conn = get_db_connection()
     
-    # Get projects with session counts
-    projects = conn.execute('''
+    # Get all projects with session counts and duration
+    all_projects = conn.execute('''
         SELECT p.*, COUNT(s.id) as session_count, 
                SUM(s.duration_minutes) as total_duration
         FROM projects p
         LEFT JOIN sessions s ON p.id = s.project_id
         GROUP BY p.id
-        ORDER BY p.last_activity DESC
+        ORDER BY p.name
     ''').fetchall()
     
+    # Organize projects hierarchically
+    projects_dict = {p['id']: dict(p) for p in all_projects}
+    
+    # Separate parent projects and subprojects
+    parent_projects = []
+    subprojects = []
+    
+    for project in all_projects:
+        project_dict = dict(project)
+        if project['parent_id'] is None:
+            # This is a parent project
+            project_dict['subprojects'] = []
+            parent_projects.append(project_dict)
+        else:
+            # This is a subproject
+            subprojects.append(project_dict)
+    
+    # Add subprojects to their parent projects
+    for subproject in subprojects:
+        parent_id = subproject['parent_id']
+        if parent_id in projects_dict:
+            # Find the parent in our parent_projects list
+            for parent in parent_projects:
+                if parent['id'] == parent_id:
+                    parent['subprojects'].append(subproject)
+                    break
+    
+    # Calculate total duration including subprojects for each parent project
+    for parent in parent_projects:
+        # Start with parent project's own duration
+        total_duration = parent['total_duration'] or 0
+        total_sessions = parent['session_count'] or 0
+        
+        # Add subproject durations and sessions
+        for subproject in parent['subprojects']:
+            total_duration += subproject['total_duration'] or 0
+            total_sessions += subproject['session_count'] or 0
+        
+        # Update parent project with rolled-up totals
+        parent['total_duration'] = total_duration
+        parent['session_count'] = total_sessions
+    
+    # Sort parent projects by name and subprojects within each parent
+    parent_projects.sort(key=lambda x: x['name'].lower())
+    for parent in parent_projects:
+        parent['subprojects'].sort(key=lambda x: x['name'].lower())
+    
     conn.close()
-    return render_template('db_browser/projects.html', projects=projects)
+    return render_template('db_browser/projects.html', projects=parent_projects)
 
 @db_browser.route('/db/projects/<int:project_id>')
 def project_detail(project_id):
@@ -177,12 +224,34 @@ def sessions():
     
     sessions = conn.execute(query, params).fetchall()
     
+    # Process sessions to add current duration for active sessions
+    current_time = datetime.now()
+    processed_sessions = []
+    
+    for session in sessions:
+        session_dict = dict(session)
+        
+        # Check if session is active (no end_time)
+        if session['end_time'] is None:
+            session_dict['is_active'] = True
+            # Calculate current duration
+            start_time = datetime.fromisoformat(session['start_time'].replace('Z', '+00:00'))
+            current_duration_seconds = (current_time - start_time).total_seconds()
+            session_dict['current_duration_minutes'] = int(current_duration_seconds / 60)
+            session_dict['start_timestamp'] = start_time.timestamp()
+        else:
+            session_dict['is_active'] = False
+            session_dict['current_duration_minutes'] = session['duration_minutes']
+            session_dict['start_timestamp'] = None
+        
+        processed_sessions.append(session_dict)
+    
     # Get projects for filter dropdown
     projects = conn.execute('SELECT name FROM projects ORDER BY name').fetchall()
     
     conn.close()
     return render_template('db_browser/sessions.html', 
-                         sessions=sessions, 
+                         sessions=processed_sessions, 
                          projects=projects,
                          filters={'project': project_filter, 'category': category_filter, 
                                  'date_from': date_from, 'date_to': date_to})

@@ -36,12 +36,21 @@
             </thead>
             <tbody>
                 {% for project in projects %}
-                <tr>
+                <!-- Parent Project Row -->
+                <tr class="table-primary">
                     <td>{{ project.id }}</td>
                     <td>
-                        <strong>{{ project.name }}</strong>
+                        <strong>
+                            <i class="bi bi-folder-fill text-warning me-2"></i>
+                            {{ project.name }}
+                        </strong>
                         {% if project.path %}
                             <br><small class="text-muted">{{ project.path }}</small>
+                        {% endif %}
+                        {% if project.subprojects %}
+                            <br><small class="text-info">
+                                <i class="bi bi-diagram-3"></i> {{ project.subprojects|length }} subproject{{ 's' if project.subprojects|length != 1 else '' }}
+                            </small>
                         {% endif %}
                     </td>
                     <td>
@@ -83,6 +92,70 @@
                         </div>
                     </td>
                 </tr>
+                
+                <!-- Subprojects -->
+                {% for subproject in project.subprojects %}
+                <tr class="table-light">
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div class="border-start border-3 border-secondary ms-3 me-2" style="height: 20px;"></div>
+                            {{ subproject.id }}
+                        </div>
+                    </td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div class="border-start border-3 border-secondary ms-3 me-2" style="height: 20px;"></div>
+                            <div>
+                                <strong class="text-secondary">
+                                    <i class="bi bi-folder text-muted me-2"></i>
+                                    {{ subproject.name }}
+                                </strong>
+                                {% if subproject.path %}
+                                    <br><small class="text-muted">{{ subproject.path }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge bg-light text-dark">{{ subproject.type }}</span>
+                    </td>
+                    <td>{{ subproject.language or '-' }}</td>
+                    <td>{{ subproject.framework or '-' }}</td>
+                    <td>
+                        <span class="badge bg-light text-dark">{{ subproject.session_count }}</span>
+                    </td>
+                    <td>
+                        {% if subproject.total_duration %}
+                            {{ "%.1f"|format(subproject.total_duration / 60) }}h
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if subproject.last_activity %}
+                            {% set date_parts = subproject.last_activity.split('T') %}
+                            {{ date_parts[0] }}
+                            {% if date_parts|length > 1 %}
+                                <br><small class="text-muted">{{ date_parts[1][:5] }}</small>
+                            {% endif %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <a href="{{ url_for('db_browser.project_detail', project_id=subproject.id) }}" 
+                               class="btn btn-outline-primary btn-sm" title="View Details">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="{{ url_for('db_browser.edit_project', project_id=subproject.id) }}" 
+                               class="btn btn-outline-secondary btn-sm" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
                 {% endfor %}
             </tbody>
         </table>
