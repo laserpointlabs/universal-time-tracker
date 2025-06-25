@@ -1034,35 +1034,101 @@
             const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
             const weekdayData = weekdays.map(day => trends.weekday_breakdown[day] || 0);
             
+            // Prepare box plot data
+            const boxPlotData = weekdays.map(day => {
+                const boxData = trends.weekday_box_plots[day];
+                if (boxData && boxData.count > 0) {
+                    return {
+                        min: boxData.min,
+                        q1: boxData.q1,
+                        median: boxData.median,
+                        q3: boxData.q3,
+                        max: boxData.max,
+                        count: boxData.count
+                    };
+                } else {
+                    return null;
+                }
+            });
+            
             new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: weekdays,
-                    datasets: [{
-                        label: 'Hours',
-                        data: weekdayData,
-                        borderColor: '#10b981',
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                        tension: 0.4,
-                        fill: true,
-                        pointBackgroundColor: '#10b981',
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 2
-                    }]
+                    datasets: [
+                        // Line chart dataset (existing)
+                        {
+                            label: 'Average Hours',
+                            data: weekdayData,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            pointBackgroundColor: '#10b981',
+                            pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2,
+                            yAxisID: 'y'
+                        },
+                        // Box plot dataset (new)
+                        {
+                            label: 'Daily Variation',
+                            data: boxPlotData.map(box => box ? box.median : null),
+                            type: 'bar',
+                            backgroundColor: 'rgba(59, 130, 246, 0.3)',
+                            borderColor: 'rgba(59, 130, 246, 0.8)',
+                            borderWidth: 1,
+                            borderRadius: 2,
+                            yAxisID: 'y',
+                            order: 2
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            display: false
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 20
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                afterBody: function(context) {
+                                    const dataIndex = context[0].dataIndex;
+                                    const boxData = boxPlotData[dataIndex];
+                                    if (boxData && boxData.count > 0) {
+                                        return [
+                                            '',
+                                            '📊 Daily Variation:',
+                                            `   Min: ${boxData.min.toFixed(1)}h`,
+                                            `   Q1: ${boxData.q1.toFixed(1)}h`,
+                                            `   Median: ${boxData.median.toFixed(1)}h`,
+                                            `   Q3: ${boxData.q3.toFixed(1)}h`,
+                                            `   Max: ${boxData.max.toFixed(1)}h`,
+                                            `   Days: ${boxData.count}`
+                                        ];
+                                    }
+                                    return '';
+                                }
+                            }
                         }
                     },
                     scales: {
                         y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
                             beginAtZero: true,
                             grid: {
                                 color: '#e5e7eb'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Hours'
                             }
                         },
                         x: {
@@ -1070,8 +1136,67 @@
                                 display: false
                             }
                         }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
                     }
-                }
+                },
+                plugins: [{
+                    afterDraw: function(chart) {
+                        const ctx = chart.ctx;
+                        const meta = chart.getDatasetMeta(1); // Box plot dataset
+                        
+                        if (!meta || !meta.data) return;
+                        
+                        ctx.save();
+                        ctx.lineWidth = 1;
+                        ctx.strokeStyle = 'rgba(59, 130, 246, 0.8)';
+                        ctx.fillStyle = 'rgba(59, 130, 246, 0.1)';
+                        
+                        meta.data.forEach((bar, index) => {
+                            const boxData = boxPlotData[index];
+                            if (!boxData || boxData.count === 0) return;
+                            
+                            const x = bar.x;
+                            const yScale = chart.scales.y;
+                            
+                            // Calculate box plot positions
+                            const maxY = yScale.getPixelForValue(boxData.max);
+                            const q3Y = yScale.getPixelForValue(boxData.q3);
+                            const medianY = yScale.getPixelForValue(boxData.median);
+                            const q1Y = yScale.getPixelForValue(boxData.q1);
+                            const minY = yScale.getPixelForValue(boxData.min);
+                            
+                            const boxWidth = 20;
+                            const whiskerWidth = 2;
+                            
+                            // Draw whiskers
+                            ctx.beginPath();
+                            ctx.moveTo(x - whiskerWidth, maxY);
+                            ctx.lineTo(x + whiskerWidth, maxY);
+                            ctx.moveTo(x, maxY);
+                            ctx.lineTo(x, q3Y);
+                            ctx.moveTo(x - whiskerWidth, minY);
+                            ctx.lineTo(x + whiskerWidth, minY);
+                            ctx.moveTo(x, minY);
+                            ctx.lineTo(x, q1Y);
+                            ctx.stroke();
+                            
+                            // Draw box
+                            ctx.fillRect(x - boxWidth/2, q3Y, boxWidth, q1Y - q3Y);
+                            ctx.strokeRect(x - boxWidth/2, q3Y, boxWidth, q1Y - q3Y);
+                            
+                            // Draw median line
+                            ctx.beginPath();
+                            ctx.moveTo(x - boxWidth/2, medianY);
+                            ctx.lineTo(x + boxWidth/2, medianY);
+                            ctx.stroke();
+                        });
+                        
+                        ctx.restore();
+                    }
+                }]
             });
         }
         
