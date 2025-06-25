@@ -1,11 +1,6 @@
 import os
 import tempfile
 
-# Set up temporary database path before importing app
-temp_dir = tempfile.mkdtemp()
-db_path = os.path.join(temp_dir, "test.db")
-os.environ['DATABASE_PATH'] = db_path
-
 import pytest
 
 from app import app, db
@@ -13,7 +8,8 @@ from app import app, db
 @pytest.fixture
 def client():
     """Create a test client for the Flask app"""
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
+    # Use in-memory SQLite database for tests
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
     app.config['TESTING'] = True
     app.config['SECRET_KEY'] = 'test-secret-key'
 
@@ -22,10 +18,6 @@ def client():
             # Create database tables directly
             db.create_all()
             yield client
-    
-    # Cleanup
-    import shutil
-    shutil.rmtree(temp_dir)
 
 def test_health(client):
     """Test the health check endpoint"""
