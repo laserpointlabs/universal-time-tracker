@@ -1257,6 +1257,78 @@ Provide 5-7 specific, actionable recommendations based on this data:\n\nPROJECT:
     def landing_page():
         return render_template('index.html', year=datetime.now().year)
 
+    @app.route('/api/v1/sessions/create', methods=['POST'])
+    def create_session():
+        """Create a historical session with custom start and end times"""
+        data = request.get_json()
+        
+        project_name = data.get('project')
+        description = data.get('description')
+        category = data.get('category', 'development')
+        start_time_str = data.get('start_time')
+        end_time_str = data.get('end_time')
+        
+        if not all([project_name, description, start_time_str]):
+            return jsonify({'error': 'Project name, description, and start_time are required'}), 400
+        
+        try:
+            # Parse datetime strings
+            start_time = datetime.fromisoformat(start_time_str.replace('Z', '+00:00'))
+            end_time = None
+            if end_time_str:
+                end_time = datetime.fromisoformat(end_time_str.replace('Z', '+00:00'))
+        except ValueError as e:
+            return jsonify({'error': f'Invalid datetime format: {e}'}), 400
+        
+        # Get or create project
+        project = Project.query.filter_by(name=project_name).first()
+        if not project:
+            project = Project(
+                name=project_name,
+                type='development',
+                created_at=datetime.now(),
+                last_activity=datetime.now(),
+                userid=get_user_id()
+            )
+            db.session.add(project)
+            db.session.flush()  # Get project.id
+        
+        # Calculate duration if end_time is provided
+        duration_minutes = None
+        if start_time and end_time:
+            if end_time <= start_time:
+                return jsonify({'error': 'End time must be after start time'}), 400
+            duration_seconds = (end_time - start_time).total_seconds()
+            duration_minutes = int(duration_seconds / 60)
+        
+        # Create session
+        session = Session(
+            project_id=project.id,
+            start_time=start_time,
+            end_time=end_time,
+            duration_minutes=duration_minutes,
+            category=category,
+            description=description,
+            userid=get_user_id()
+        )
+        
+        db.session.add(session)
+        project.last_activity = datetime.now()
+        db.session.commit()
+        
+        logger.info(f"Created historical session: {description} for project {project_name} ({start_time} to {end_time})")
+        
+        return jsonify({
+            'session_id': session.id,
+            'project': project_name,
+            'description': description,
+            'category': category,
+            'start_time': session.start_time.isoformat(),
+            'end_time': session.end_time.isoformat() if session.end_time else None,
+            'duration_minutes': session.duration_minutes,
+            'message': 'Historical session created successfully'
+        })
+
     return app
 
 # Create the default app instance

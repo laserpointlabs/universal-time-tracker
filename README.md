@@ -11,6 +11,7 @@ A powerful, intelligent time tracking system for software projects with advanced
 - **⏸️ Break tracking** with automatic session pause/resume
 - **🔗 Git integration** for linking commits to sessions
 - **🌍 Cross-platform CLI** for seamless workflow integration
+- **📅 Historical session creation** - Add missed sessions with custom start/end times
 
 ### Advanced Analytics & Visualization
 - **🔥 GitHub-style Activity Heatmap** - Visualize your coding activity across the year
@@ -54,6 +55,10 @@ cd ~/your-project
 ./path/to/universal-time-tracker/cli/tt start "Working on new feature" -c development
 ./path/to/universal-time-tracker/cli/tt break coffee
 ./path/to/universal-time-tracker/cli/tt stop
+
+# Historical sessions
+./cli/tt create "Missed session" --start-time "2024-01-15 10:00" --duration 2.5  # Add historical session
+./cli/tt create "Team meeting" --start-time "2024-01-15 14:00" --end-time "2024-01-15 15:30"  # With end time
 ```
 
 ### 4. View Analytics Dashboard
@@ -200,6 +205,10 @@ The prompt editor provides a comprehensive interface with:
 ./cli/tt break coffee                      # Take a coffee break
 ./cli/tt stop                              # Stop current session
 ./cli/tt status                            # Check current status
+
+# Historical sessions
+./cli/tt create "Missed session" --start-time "2024-01-15 10:00" --duration 2.5  # Add historical session
+./cli/tt create "Team meeting" --start-time "2024-01-15 14:00" --end-time "2024-01-15 15:30"  # With end time
 
 # Reporting & analytics
 ./cli/tt report today                      # Today's summary
