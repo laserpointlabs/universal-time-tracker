@@ -33,6 +33,12 @@ db = SQLAlchemy(app)
 from models import create_models
 Project, Session, Break = create_models(db)
 
+# Import database browser
+from db_browser import db_browser
+
+# Register blueprints
+app.register_blueprint(db_browser)
+
 # Create tables
 with app.app_context():
     db.create_all()

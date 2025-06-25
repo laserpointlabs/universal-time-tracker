@@ -1,0 +1,79 @@
+{% extends "db_browser/base.html" %}
+
+{% block title %}Edit {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Edit Project: {{ project.name }}</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('db_browser.project_detail', project_id=project.id) }}" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-arrow-left"></i> Back to Project
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h5>Project Information</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="name" class="form-label">Project Name *</label>
+                            <input type="text" class="form-control" id="name" name="name" 
+                                   value="{{ project.name }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="type" class="form-label">Project Type</label>
+                            <select class="form-select" id="type" name="type">
+                                <option value="development" {% if project.type == 'development' %}selected{% endif %}>Development</option>
+                                <option value="research" {% if project.type == 'research' %}selected{% endif %}>Research</option>
+                                <option value="meeting" {% if project.type == 'meeting' %}selected{% endif %}>Meeting</option>
+                                <option value="planning" {% if project.type == 'planning' %}selected{% endif %}>Planning</option>
+                                <option value="other" {% if project.type == 'other' %}selected{% endif %}>Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="language" class="form-label">Programming Language</label>
+                            <input type="text" class="form-control" id="language" name="language" 
+                                   value="{{ project.language or '' }}" placeholder="e.g., Python, JavaScript">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="framework" class="form-label">Framework</label>
+                            <input type="text" class="form-control" id="framework" name="framework" 
+                                   value="{{ project.framework or '' }}" placeholder="e.g., Flask, React">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="path" class="form-label">Project Path</label>
+                        <input type="text" class="form-control" id="path" name="path" 
+                               value="{{ project.path or '' }}" placeholder="/path/to/project">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="git_remote" class="form-label">Git Remote URL</label>
+                        <input type="text" class="form-control" id="git_remote" name="git_remote" 
+                               value="{{ project.git_remote or '' }}" placeholder="https://github.com/user/repo.git">
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('db_browser.project_detail', project_id=project.id) }}" class="btn btn-secondary">
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check"></i> Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

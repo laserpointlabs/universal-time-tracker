@@ -1,0 +1,220 @@
+{% extends "db_browser/base.html" %}
+
+{% block title %}{{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">{{ project.name }}</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('db_browser.edit_project', project_id=project.id) }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-pencil"></i> Edit Project
+            </a>
+            <a href="{{ url_for('db_browser.projects') }}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-arrow-left"></i> Back to Projects
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Project Details</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <td><strong>ID:</strong></td>
+                        <td>{{ project.id }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Name:</strong></td>
+                        <td>{{ project.name }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Type:</strong></td>
+                        <td><span class="badge bg-secondary">{{ project.type }}</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Language:</strong></td>
+                        <td>{{ project.language or 'N/A' }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Framework:</strong></td>
+                        <td>{{ project.framework or 'N/A' }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Path:</strong></td>
+                        <td><code>{{ project.path or 'N/A' }}</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Git Remote:</strong></td>
+                        <td><code>{{ project.git_remote or 'N/A' }}</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Created:</strong></td>
+                        <td>{{ project.created_at.split('T')[0] if project.created_at else 'N/A' }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Last Activity:</strong></td>
+                        <td>{{ project.last_activity.split('T')[0] if project.last_activity else 'N/A' }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Session Statistics</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h3 class="text-primary">{{ sessions|length }}</h3>
+                        <p class="text-muted">Total Sessions</p>
+                    </div>
+                    <div class="col-6">
+                        {% set total_duration = sessions|sum(attribute='duration_minutes') %}
+                        <h3 class="text-success">{{ "%.1f"|format(total_duration / 60) }}</h3>
+                        <p class="text-muted">Total Hours</p>
+                    </div>
+                </div>
+                
+                {% if sessions %}
+                <div class="mt-3">
+                    <h6>Recent Activity</h6>
+                    <div class="list-group list-group-flush">
+                        {% for session in sessions[:5] %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ session.description[:40] }}{% if session.description|length > 40 %}...{% endif %}</strong>
+                                <br><small class="text-muted">
+                                    {% if session.start_time %}
+                                        {% set date_parts = session.start_time.split('T') %}
+                                        {{ date_parts[0] }}
+                                        {% if date_parts|length > 1 %}
+                                            {{ date_parts[1][:5] }}
+                                        {% endif %}
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-secondary">{{ session.category }}</span>
+                                {% if session.duration_minutes %}
+                                    <br><small>{{ session.duration_minutes }}m</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5>All Sessions ({{ sessions|length }})</h5>
+                <a href="{{ url_for('db_browser.sessions') }}?project={{ project.name }}" class="btn btn-sm btn-outline-primary">
+                    View All Sessions
+                </a>
+            </div>
+            <div class="card-body">
+                {% if sessions %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Description</th>
+                                <th>Category</th>
+                                <th>Start Time</th>
+                                <th>Duration</th>
+                                <th>Breaks</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for session in sessions %}
+                            <tr>
+                                <td>{{ session.id }}</td>
+                                <td>
+                                    <div style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                        {{ session.description }}
+                                    </div>
+                                </td>
+                                <td><span class="badge bg-secondary">{{ session.category }}</span></td>
+                                <td>
+                                    {% if session.start_time %}
+                                        {% set date_parts = session.start_time.split('T') %}
+                                        {{ date_parts[0] }}
+                                        {% if date_parts|length > 1 %}
+                                            <br><small class="text-muted">{{ date_parts[1][:5] }}</small>
+                                        {% endif %}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if session.duration_minutes %}
+                                        {% set hours = session.duration_minutes // 60 %}
+                                        {% set minutes = session.duration_minutes % 60 %}
+                                        {% if hours > 0 %}
+                                            {{ hours }}h {{ minutes }}m
+                                        {% else %}
+                                            {{ minutes }}m
+                                        {% endif %}
+                                    {% else %}
+                                        {% if not session.end_time %}
+                                            <span class="badge bg-warning">Active</span>
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if session.break_count > 0 %}
+                                        <span class="badge bg-info">{{ session.break_count }}</span>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{{ url_for('db_browser.session_detail', session_id=session.id) }}" 
+                                           class="btn btn-outline-primary" title="View Details">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('db_browser.edit_session', session_id=session.id) }}" 
+                                           class="btn btn-outline-secondary" title="Edit">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-clock-x fs-1 text-muted"></i>
+                    <h4 class="text-muted mt-3">No sessions found</h4>
+                    <p class="text-muted">This project doesn't have any time tracking sessions yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

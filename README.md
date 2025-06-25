@@ -19,6 +19,14 @@ A powerful, intelligent time tracking system for software projects with advanced
 - **⏱️ Session Analysis** - Get insights on session lengths and break patterns
 - **💡 Smart Recommendations** - Personalized productivity suggestions
 
+### Database Management
+- **🌐 Web-based Database Browser** - Easy review and edit of all time tracking data
+- **📋 Project & Session Management** - View, edit, and filter projects and sessions
+- **🔍 Advanced Search** - Search across projects, sessions, and descriptions
+- **📊 Real-time Statistics** - Live database overview and metrics
+- **💾 Data Export** - Export all data as JSON for backup and analysis
+- **⚡ Command-line Tools** - Quick database operations from terminal
+
 ### Beautiful Dashboard
 - **🎨 Interactive Web Dashboard** at http://localhost:9000/dashboard
 - **📱 Responsive design** that works on all devices
@@ -53,6 +61,21 @@ Open http://localhost:9000/dashboard in your browser and enter your project name
 - Category breakdown with trends
 - Productivity patterns and insights
 - Session analysis and recommendations
+
+### 5. Manage Database (Optional)
+Access the database browser at http://localhost:9000/db to:
+- View and edit projects and sessions
+- Search across all data
+- Export data for backup
+- Get real-time statistics
+
+Or use the command-line tools:
+```bash
+python db_manager.py stats                    # Show database overview
+python db_manager.py projects                 # List all projects
+python db_manager.py sessions --limit 10      # Show recent sessions
+python db_manager.py search --query "bug fix" # Search for sessions
+```
 
 ## 🏗️ Architecture
 
@@ -189,6 +212,13 @@ aliases:
 - `GET /api/v1/reports/{period}` - Generate time reports
 - `GET /dashboard` - Interactive analytics dashboard
 
+### Database Management
+- `GET /db` - Web-based database browser
+- `GET /db/projects` - List and manage projects
+- `GET /db/sessions` - List and manage sessions
+- `GET /db/search` - Search across all data
+- `GET /db/export` - Export data as JSON
+
 ## 📱 Example Workflows
 
 ### Daily Development
@@ -236,6 +266,46 @@ Visit **http://localhost:9000/dashboard** to see:
 - **💡 Smart Insights**: Personalized recommendations
 - **📋 Session Stats**: Focus and break analysis
 
+## 🗄️ Database Management
+
+### Web Interface
+Access the database browser at **http://localhost:9000/db** for:
+
+- **📊 Dashboard**: Real-time statistics and overview
+- **📁 Projects**: View, edit, and manage all projects
+- **⏱️ Sessions**: Browse and filter sessions with advanced search
+- **🔍 Search**: Find specific projects or sessions quickly
+- **💾 Export**: Download complete database as JSON
+
+### Command Line Tools
+Use `db_manager.py` for quick database operations:
+
+```bash
+# Database overview
+python db_manager.py stats
+
+# List projects with details
+python db_manager.py projects
+
+# Show recent sessions
+python db_manager.py sessions --limit 20
+
+# Search for specific content
+python db_manager.py search --query "bug fix"
+
+# Export data to file
+python db_manager.py export --output backup.json
+
+# View project details
+python db_manager.py project --id 5
+```
+
+### Database Schema
+The system uses SQLite with three main tables:
+- **Projects**: Project metadata and configuration
+- **Sessions**: Time tracking sessions with categories
+- **Breaks**: Break periods within sessions
+
 ## 🛠️ Installation & Setup
 
 ### Prerequisites
@@ -276,6 +346,7 @@ cd ~/your-project
 │   ├── api_reference.md
 │   ├── configuration.md
 │   ├── analytics.md
+│   ├── database_management.md
 │   └── docker_setup.md
 └── docker-compose.yml
 ```
@@ -285,7 +356,7 @@ The system uses a centralized Flask server (port 9000) with SQLite database for 
 ## 🔧 Requirements
 
 - **Server**: Docker, 1GB RAM, 500MB disk space
-- **CLI**: Python 3.8+, pip packages (pyyaml, requests, click)
+- **CLI**: Python 3.8+, pip packages (pyyaml, requests, click, tabulate)
 - **Dashboard**: Modern browser (Chrome, Firefox, Safari)
 - **Network**: HTTP access to localhost:9000
 

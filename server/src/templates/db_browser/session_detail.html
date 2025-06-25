@@ -1,0 +1,126 @@
+{% extends "db_browser/base.html" %}
+
+{% block title %}Session #{{ session.id }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Session #{{ session.id }}</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('db_browser.sessions') }}" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-arrow-left"></i> Back to Sessions
+        </a>
+        <a href="{{ url_for('db_browser.edit_session', session_id=session.id) }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-pencil"></i> Edit Session
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Session Details</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <td><strong>ID:</strong></td>
+                        <td>{{ session.id }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Project:</strong></td>
+                        <td>{{ session.project_name }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Description:</strong></td>
+                        <td>{{ session.description }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Category:</strong></td>
+                        <td><span class="badge bg-secondary">{{ session.category }}</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Start Time:</strong></td>
+                        <td>
+                            {% if session.start_time %}
+                                {% set date_parts = session.start_time.split('T') %}
+                                {{ date_parts[0] }}
+                                {% if date_parts|length > 1 %}
+                                    <br><small class="text-muted">{{ date_parts[1][:5] }}</small>
+                                {% endif %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>End Time:</strong></td>
+                        <td>
+                            {% if session.end_time %}
+                                {% set date_parts = session.end_time.split('T') %}
+                                {{ date_parts[0] }}
+                                {% if date_parts|length > 1 %}
+                                    <br><small class="text-muted">{{ date_parts[1][:5] }}</small>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-warning">Active</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Duration:</strong></td>
+                        <td>
+                            {% if session.duration_minutes %}
+                                {% set hours = session.duration_minutes // 60 %}
+                                {% set minutes = session.duration_minutes % 60 %}
+                                {% if hours > 0 %}
+                                    {{ hours }}h {{ minutes }}m
+                                {% else %}
+                                    {{ minutes }}m
+                                {% endif %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Breaks ({{ breaks|length }})</h5>
+            </div>
+            <div class="card-body">
+                {% if breaks %}
+                <ul class="list-group">
+                    {% for br in breaks %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="badge bg-info">{{ br.break_type }}</span>
+                            <br>
+                            {% if br.start_time %}
+                                {% set date_parts = br.start_time.split('T') %}
+                                {{ date_parts[0] }}
+                                {% if date_parts|length > 1 %}
+                                    <small class="text-muted">{{ date_parts[1][:5] }}</small>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                        <div class="text-end">
+                            {% if br.duration_minutes %}
+                                <span class="badge bg-secondary">{{ br.duration_minutes }}m</span>
+                            {% endif %}
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="text-center text-muted">No breaks recorded for this session.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

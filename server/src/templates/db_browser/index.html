@@ -1,0 +1,155 @@
+{% extends "db_browser/base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Database Overview</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('db_browser.export_data') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-download"></i> Export Data
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-3 mb-4">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Projects</h5>
+                        <h2 class="mb-0">{{ stats.projects }}</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-folder fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Sessions</h5>
+                        <h2 class="mb-0">{{ stats.sessions }}</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-clock fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Breaks</h5>
+                        <h2 class="mb-0">{{ stats.breaks }}</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-cup-hot fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Active</h5>
+                        <h2 class="mb-0">{{ stats.active_sessions }}</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-play-circle fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Total Time Tracked</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h2 class="text-primary">{{ "%.1f"|format(stats.total_hours) }} hours</h2>
+                        <p class="text-muted">Across all projects and sessions</p>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="progress" style="height: 30px;">
+                            <div class="progress-bar bg-primary" role="progressbar" 
+                                 style="width: {{ (stats.total_hours / 100) * 100 }}%">
+                                {{ "%.1f"|format(stats.total_hours) }}h
+                            </div>
+                        </div>
+                        <small class="text-muted">Progress indicator (100h = 100%)</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('db_browser.projects') }}" class="btn btn-primary">
+                        <i class="bi bi-folder"></i> View All Projects
+                    </a>
+                    <a href="{{ url_for('db_browser.sessions') }}" class="btn btn-success">
+                        <i class="bi bi-clock"></i> View All Sessions
+                    </a>
+                    <a href="{{ url_for('db_browser.search') }}" class="btn btn-info">
+                        <i class="bi bi-search"></i> Search Database
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Database Info</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><strong>Database:</strong> SQLite</li>
+                    <li><strong>Location:</strong> data/timetracker.db</li>
+                    <li><strong>Tables:</strong> projects, sessions, breaks</li>
+                    <li><strong>Last Updated:</strong> <span id="current-time"></span></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Set current time
+    document.getElementById('current-time').textContent = new Date().toLocaleString();
+</script>
+{% endblock %} 
