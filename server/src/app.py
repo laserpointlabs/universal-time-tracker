@@ -22,14 +22,42 @@ logger = logging.getLogger(__name__)
 
 def get_user_id():
     """Safely get user ID, with fallbacks for Docker containers"""
+    # First check for explicit user ID in environment
+    explicit_user = os.environ.get('TIME_TRACKER_USER_ID')
+    if explicit_user:
+        return explicit_user
+    
+    # Try to get user from various sources
     try:
+        # Try os.getlogin() first
         return os.getlogin()
     except OSError:
-        # Fallback for Docker containers or environments without proper user context
-        try:
-            return os.environ.get('USER', os.environ.get('USERNAME', 'unknown'))
-        except:
-            return 'unknown'
+        pass
+    
+    # Try environment variables
+    for env_var in ['USER', 'USERNAME', 'LOGNAME', 'HOSTNAME']:
+        user = os.environ.get(env_var)
+        if user and user != 'root':
+            return user
+    
+    # Try to get from /etc/passwd or similar
+    try:
+        import pwd
+        return pwd.getpwuid(os.getuid()).pw_name
+    except (ImportError, OSError, KeyError):
+        pass
+    
+    # Final fallback - try to get hostname or container name
+    try:
+        import socket
+        hostname = socket.gethostname()
+        if hostname and hostname != 'localhost':
+            return hostname
+    except:
+        pass
+    
+    # Last resort fallback
+    return 'unknown'
 
 # Initialize database
 db = SQLAlchemy()
@@ -722,10 +750,10 @@ def create_app(config=None):
             daily_data = {}
             hourly_data = defaultdict(float)  # Hour of day analysis
             weekday_data = defaultdict(float)  # Day of week analysis
+            weekday_daily_variation = defaultdict(list)  # Daily variation for box plots
             
             for session in sessions:
                 date_key = session.start_time.strftime('%Y-%m-%d')
-                hour_key = session.start_time.hour
                 weekday_key = session.start_time.strftime('%A')
                 
                 duration = (session.end_time - session.start_time).total_seconds() / 3600
@@ -741,8 +769,60 @@ def create_app(config=None):
                 daily_data[date_key]['sessions'] += 1
                 daily_data[date_key]['categories'].add(session.category)
                 
-                hourly_data[hour_key] += duration
+                # Distribute session time across actual hours spanned
+                current_time = session.start_time
+                remaining_duration = duration
+                
+                while remaining_duration > 0 and current_time < session.end_time:
+                    # Calculate how much time to attribute to this hour
+                    hour_end = current_time.replace(minute=59, second=59, microsecond=999999)
+                    if hour_end > session.end_time:
+                        hour_end = session.end_time
+                    
+                    time_in_hour = (hour_end - current_time).total_seconds() / 3600
+                    time_to_use = min(time_in_hour, remaining_duration)
+                    
+                    hour_key = current_time.hour
+                    hourly_data[hour_key] += time_to_use
+                    remaining_duration -= time_to_use
+                    
+                    # Move to next hour
+                    current_time = hour_end + timedelta(microseconds=1)
+                
                 weekday_data[weekday_key] += duration
+            
+            # Calculate daily variation for each weekday (for box plots)
+            for date_key, data in daily_data.items():
+                date_obj = datetime.strptime(date_key, '%Y-%m-%d')
+                weekday_key = date_obj.strftime('%A')
+                weekday_daily_variation[weekday_key].append(data['hours'])
+            
+            # Calculate box plot statistics for each weekday
+            weekday_box_plots = {}
+            for weekday in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']:
+                daily_hours = weekday_daily_variation[weekday]
+                if daily_hours:
+                    daily_hours.sort()
+                    n = len(daily_hours)
+                    
+                    # Calculate quartiles
+                    q1_idx = int(0.25 * n)
+                    q2_idx = int(0.5 * n)
+                    q3_idx = int(0.75 * n)
+                    
+                    weekday_box_plots[weekday] = {
+                        'min': daily_hours[0],
+                        'q1': daily_hours[q1_idx],
+                        'median': daily_hours[q2_idx],
+                        'q3': daily_hours[q3_idx],
+                        'max': daily_hours[-1],
+                        'count': n,
+                        'data': daily_hours  # Include raw data for more detailed analysis
+                    }
+                else:
+                    weekday_box_plots[weekday] = {
+                        'min': 0, 'q1': 0, 'median': 0, 'q3': 0, 'max': 0, 'count': 0, 'data': []
+                    }
             
             # Calculate trends and insights
             daily_hours = [data['hours'] for data in daily_data.values()]
@@ -779,6 +859,7 @@ def create_app(config=None):
                 },
                 'hourly_breakdown': {str(hour): round(hours, 2) for hour, hours in hourly_data.items()},
                 'weekday_breakdown': {day: round(hours, 2) for day, hours in weekday_data.items()},
+                'weekday_box_plots': weekday_box_plots,
                 'insights': insights,
                 'stats': {
                     'avg_daily_hours': round(avg_daily_hours, 2),
@@ -1256,6 +1337,78 @@ Provide 5-7 specific, actionable recommendations based on this data:\n\nPROJECT:
     @app.route('/')
     def landing_page():
         return render_template('index.html', year=datetime.now().year)
+
+    @app.route('/api/v1/sessions/create', methods=['POST'])
+    def create_session():
+        """Create a historical session with custom start and end times"""
+        data = request.get_json()
+        
+        project_name = data.get('project')
+        description = data.get('description')
+        category = data.get('category', 'development')
+        start_time_str = data.get('start_time')
+        end_time_str = data.get('end_time')
+        
+        if not all([project_name, description, start_time_str]):
+            return jsonify({'error': 'Project name, description, and start_time are required'}), 400
+        
+        try:
+            # Parse datetime strings
+            start_time = datetime.fromisoformat(start_time_str.replace('Z', '+00:00'))
+            end_time = None
+            if end_time_str:
+                end_time = datetime.fromisoformat(end_time_str.replace('Z', '+00:00'))
+        except ValueError as e:
+            return jsonify({'error': f'Invalid datetime format: {e}'}), 400
+        
+        # Get or create project
+        project = Project.query.filter_by(name=project_name).first()
+        if not project:
+            project = Project(
+                name=project_name,
+                type='development',
+                created_at=datetime.now(),
+                last_activity=datetime.now(),
+                userid=get_user_id()
+            )
+            db.session.add(project)
+            db.session.flush()  # Get project.id
+        
+        # Calculate duration if end_time is provided
+        duration_minutes = None
+        if start_time and end_time:
+            if end_time <= start_time:
+                return jsonify({'error': 'End time must be after start time'}), 400
+            duration_seconds = (end_time - start_time).total_seconds()
+            duration_minutes = int(duration_seconds / 60)
+        
+        # Create session
+        session = Session(
+            project_id=project.id,
+            start_time=start_time,
+            end_time=end_time,
+            duration_minutes=duration_minutes,
+            category=category,
+            description=description,
+            userid=get_user_id()
+        )
+        
+        db.session.add(session)
+        project.last_activity = datetime.now()
+        db.session.commit()
+        
+        logger.info(f"Created historical session: {description} for project {project_name} ({start_time} to {end_time})")
+        
+        return jsonify({
+            'session_id': session.id,
+            'project': project_name,
+            'description': description,
+            'category': category,
+            'start_time': session.start_time.isoformat(),
+            'end_time': session.end_time.isoformat() if session.end_time else None,
+            'duration_minutes': session.duration_minutes,
+            'message': 'Historical session created successfully'
+        })
 
     return app
 

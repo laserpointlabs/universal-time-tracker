@@ -19,6 +19,7 @@ services:
       - DATABASE_PATH=/app/data/timetracker.db
       - TZ=America/New_York
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - TIME_TRACKER_USER_ID=${USER:-jdehart}
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:9000/health" ]

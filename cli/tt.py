@@ -11,7 +11,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 
 class ProjectConfig:
     """Handle .timecfg file parsing and project configuration"""
@@ -236,6 +236,89 @@ aliases:
     click.echo(f"🔍 Auto-detected: {language}/{framework}")
     click.echo("💡 Add .timecfg to your .gitignore if you don't want to commit it")
     click.echo("🚀 You can now use 'tt start', 'tt stop', etc.")
+
+@cli.command()
+@click.argument('description')
+@click.option('--category', '-c', help='Time category')
+@click.option('--start-time', '-s', required=True, help='Start time (YYYY-MM-DD HH:MM or YYYY-MM-DDTHH:MM)')
+@click.option('--end-time', '-e', help='End time (YYYY-MM-DD HH:MM or YYYY-MM-DDTHH:MM). If not provided, session will be active.')
+@click.option('--duration', '-d', help='Duration in hours (e.g., 2.5 for 2.5 hours). Alternative to end-time.')
+@click.pass_context
+def create(ctx, description, category, start_time, end_time, duration):
+    """Create a historical session with custom start and end times"""
+    
+    # Parse start time
+    try:
+        # Handle different datetime formats
+        if 'T' in start_time:
+            start_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+        else:
+            start_dt = datetime.strptime(start_time, '%Y-%m-%d %H:%M')
+    except ValueError:
+        click.echo("❌ Invalid start time format. Use YYYY-MM-DD HH:MM or YYYY-MM-DDTHH:MM")
+        return
+    
+    # Parse end time or calculate from duration
+    end_dt = None
+    if end_time:
+        try:
+            if 'T' in end_time:
+                end_dt = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+            else:
+                end_dt = datetime.strptime(end_time, '%Y-%m-%d %H:%M')
+        except ValueError:
+            click.echo("❌ Invalid end time format. Use YYYY-MM-DD HH:MM or YYYY-MM-DDTHH:MM")
+            return
+    elif duration:
+        try:
+            duration_hours = float(duration)
+            end_dt = start_dt + timedelta(hours=duration_hours)
+        except ValueError:
+            click.echo("❌ Invalid duration format. Use a number (e.g., 2.5 for 2.5 hours)")
+            return
+    
+    # Validate times
+    if end_dt and end_dt <= start_dt:
+        click.echo("❌ End time must be after start time")
+        return
+    
+    # Use default category if not specified
+    if not category:
+        category = ctx.obj['config'].get_default_category()
+    
+    # Prepare payload
+    payload = {
+        'project': ctx.obj['project_name'],
+        'description': description,
+        'category': category,
+        'start_time': start_dt.isoformat()
+    }
+    
+    if end_dt:
+        payload['end_time'] = end_dt.isoformat()
+    
+    # Make API request
+    response = make_request('POST', f"{ctx.obj['server_url']}/sessions/create", json=payload)
+    
+    if response.status_code == 200:
+        data = response.json()
+        session_id = data.get('session_id')
+        duration_minutes = data.get('duration_minutes', 0)
+        
+        click.echo(f"✅ Created historical session #{session_id}")
+        click.echo(f"📝 Description: {description}")
+        click.echo(f"📂 Category: {category}")
+        click.echo(f"🕐 Start: {start_dt.strftime('%Y-%m-%d %H:%M')}")
+        
+        if end_dt:
+            hours = duration_minutes // 60
+            minutes = duration_minutes % 60
+            click.echo(f"🕐 End: {end_dt.strftime('%Y-%m-%d %H:%M')}")
+            click.echo(f"⏱️ Duration: {hours}h {minutes}m")
+        else:
+            click.echo("🟢 Status: Active session")
+    else:
+        click.echo(f"❌ Error: {response.text}")
 
 @cli.command()
 @click.argument('description')
